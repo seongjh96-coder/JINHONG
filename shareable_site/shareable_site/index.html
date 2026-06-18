@@ -1,0 +1,1253 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>3PL 배송비 단가 산출 대시보드 FINAL</title>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="app_data.js"></script>
+  <style>
+    :root {
+      --ink: #172026;
+      --muted: #66747d;
+      --line: #d9e1e6;
+      --bg: #eef2f4;
+      --paper: #fff;
+      --nav: #14222c;
+      --nav2: #243642;
+      --blue: #315fba;
+      --teal: #0f7895;
+      --green: #138a61;
+      --amber: #b77812;
+      --red: #b54a3b;
+      --shadow: 0 12px 28px rgba(28, 42, 53, 0.08);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--bg);
+      font-family: "Segoe UI", "Pretendard", "Apple SD Gothic Neo", Arial, sans-serif;
+      letter-spacing: 0;
+    }
+
+    .app {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 238px 1fr;
+    }
+
+    aside {
+      background: var(--nav);
+      color: #dbe5ea;
+      padding: 22px 18px;
+    }
+
+    .brand {
+      font-size: 18px;
+      font-weight: 900;
+      margin-bottom: 22px;
+    }
+
+    nav {
+      display: grid;
+      gap: 6px;
+    }
+
+    nav button {
+      width: 100%;
+      border: 0;
+      border-radius: 6px;
+      padding: 11px 12px;
+      color: #c5d0d8;
+      background: transparent;
+      text-align: left;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    nav button.active {
+      color: #fff;
+      background: var(--nav2);
+      font-weight: 800;
+    }
+
+    main {
+      padding: 22px 28px 34px;
+      overflow: auto;
+    }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 24px;
+      line-height: 1.2;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: 16px;
+    }
+
+    .sub {
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .btn {
+      height: 38px;
+      border-radius: 6px;
+      border: 1px solid var(--line);
+      padding: 0 13px;
+      background: #fff;
+      color: var(--ink);
+      font-size: 13px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .btn.primary {
+      border-color: var(--ink);
+      background: var(--ink);
+      color: #fff;
+    }
+
+    .control-grid {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(130px, 1fr));
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .control {
+      display: grid;
+      gap: 6px;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--paper);
+      box-shadow: var(--shadow);
+    }
+
+    .control span {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    select, input, button {
+      font: inherit;
+    }
+
+    .input {
+      width: 100%;
+      height: 36px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 0 10px;
+      background: #fff;
+      color: var(--ink);
+      font-size: 13px;
+    }
+
+    .view { display: none; }
+    .view.active { display: block; }
+
+    .grid { display: grid; gap: 14px; }
+    .kpis { grid-template-columns: repeat(5, minmax(140px, 1fr)); }
+    .two { grid-template-columns: minmax(0, 1.14fr) minmax(360px, 0.86fr); align-items: start; }
+    .half { grid-template-columns: 1fr 1fr; align-items: start; }
+
+    .card {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+    }
+
+    .panel {
+      padding: 16px;
+      overflow-x: auto;
+    }
+
+    .panel-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .kpi {
+      padding: 15px 16px;
+      min-height: 104px;
+    }
+
+    .label {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .value {
+      margin-top: 10px;
+      font-size: 24px;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+
+    .delta {
+      margin-top: 8px;
+      color: var(--green);
+      font-size: 12px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12.5px;
+    }
+
+    th, td {
+      padding: 10px 8px;
+      border-bottom: 1px solid var(--line);
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    th:first-child, td:first-child,
+    th:nth-child(2), td:nth-child(2) { text-align: left; }
+    th { color: var(--muted); background: #f8fafb; font-weight: 900; }
+    tr:last-child td { border-bottom: 0; }
+
+    .status {
+      display: inline-flex;
+      align-items: center;
+      height: 24px;
+      border-radius: 999px;
+      padding: 0 9px;
+      font-size: 12px;
+      font-weight: 900;
+      color: #0d5f43;
+      background: #dff3ea;
+    }
+
+    .status.direct { color: #174a8b; background: #e3edff; }
+    .status.warn { color: #80520b; background: #fff1d6; }
+
+    .bars { display: grid; gap: 11px; }
+    .bar-row {
+      display: grid;
+      grid-template-columns: 108px 1fr 96px;
+      gap: 10px;
+      align-items: center;
+      font-size: 13px;
+    }
+
+    .track {
+      height: 10px;
+      border-radius: 999px;
+      background: #e8edf0;
+      overflow: hidden;
+    }
+
+    .fill {
+      height: 100%;
+      border-radius: 999px;
+      background: var(--teal);
+    }
+
+    .map {
+      position: relative;
+      min-height: 318px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background:
+        linear-gradient(90deg, rgba(255,255,255,0.84), rgba(255,255,255,0.52)),
+        radial-gradient(circle at 48% 20%, #d7ece4 0 9%, transparent 10%),
+        radial-gradient(circle at 42% 38%, #c5e2ee 0 13%, transparent 14%),
+        radial-gradient(circle at 55% 54%, #e9dfbd 0 15%, transparent 16%),
+        radial-gradient(circle at 47% 73%, #d6e7ce 0 12%, transparent 13%),
+        #eef3f1;
+      overflow: hidden;
+    }
+
+    .pin {
+      position: absolute;
+      display: grid;
+      place-items: center;
+      border-radius: 999px;
+      color: #fff;
+      background: var(--blue);
+      box-shadow: 0 10px 24px rgba(20, 38, 52, 0.22);
+      font-size: 12px;
+      font-weight: 900;
+      line-height: 1.2;
+      text-align: center;
+    }
+
+    .pin.transfer { background: var(--amber); }
+    .pin.mixed { background: var(--teal); }
+
+    .legend {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .legend b { color: var(--ink); }
+
+    .center-layout {
+      display: grid;
+      grid-template-columns: minmax(320px, 0.92fr) minmax(0, 1.08fr);
+      gap: 14px;
+      align-items: stretch;
+    }
+
+    .center-title {
+      margin-top: 10px;
+      font-size: 28px;
+      font-weight: 900;
+    }
+
+    .center-desc {
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.65;
+    }
+
+    .tag-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      height: 26px;
+      border-radius: 999px;
+      padding: 0 10px;
+      background: #eef3f6;
+      color: #33434d;
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .metric-list { display: grid; gap: 8px; margin-top: 12px; }
+    .metric-line {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--line);
+      font-size: 13px;
+    }
+
+    .metric-line:last-child { border-bottom: 0; }
+
+    .photo {
+      position: relative;
+      min-height: 330px;
+      border-radius: 8px;
+      overflow: hidden;
+      background: #16212a;
+    }
+
+    .photo img {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .photo-overlay {
+      position: relative;
+      z-index: 1;
+      min-height: 330px;
+      display: grid;
+      align-items: end;
+      padding: 22px;
+      color: #fff;
+      background: linear-gradient(180deg, rgba(15,25,33,0.08), rgba(15,25,33,0.86));
+    }
+
+    .photo-overlay strong { display: block; font-size: 30px; margin-bottom: 8px; }
+    .photo-overlay span { color: rgba(255,255,255,0.82); font-size: 13px; line-height: 1.55; }
+
+    .formula { display: grid; gap: 10px; }
+    .step { display: grid; grid-template-columns: 28px 1fr; gap: 10px; align-items: start; }
+    .dot {
+      display: grid;
+      place-items: center;
+      width: 24px;
+      height: 24px;
+      border-radius: 999px;
+      background: var(--ink);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .step-title { font-size: 13px; font-weight: 900; }
+    .step-text { color: var(--muted); font-size: 12px; line-height: 1.45; margin-top: 3px; }
+
+    @media (max-width: 1180px) {
+      .app { grid-template-columns: 1fr; }
+      aside { position: sticky; top: 0; z-index: 3; padding: 12px 16px; }
+      nav { grid-template-columns: repeat(3, 1fr); }
+      .control-grid, .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .two, .half, .center-layout { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 660px) {
+      main { padding: 16px; }
+      .topbar { align-items: stretch; flex-direction: column; }
+      .actions { justify-content: stretch; }
+      .btn { width: 100%; }
+      .control-grid, .kpis, nav { grid-template-columns: 1fr; }
+      .bar-row { grid-template-columns: 82px 1fr 76px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside>
+      <div class="brand">3PL Rate Desk</div>
+      <nav>
+        <button class="active" data-view="dashboard">대시보드</button>
+        <button data-view="center">메인센터 요약</button>
+        <button data-view="volume">물동량 분석</button>
+        <button data-view="rate">배송비 산출</button>
+        <button data-view="master">마스터 관리</button>
+        <button data-view="quote">견적 다운로드</button>
+        <button data-view="history">화주 누적관리</button>
+      </nav>
+    </aside>
+
+    <main>
+      <section class="topbar">
+        <div>
+          <h1 id="page-title">배송비 단가 산출 대시보드</h1>
+          <div class="sub" id="page-subtitle">필터와 직송 기준값 변경 시 결과가 즉시 재계산됩니다.</div>
+        </div>
+        <div class="actions">
+          <button class="btn" id="reset-btn">필터 초기화</button>
+          <button class="btn" id="save-history-btn">화주 이력 저장</button>
+          <button class="btn primary" id="download-btn">결과 다운로드</button>
+        </div>
+      </section>
+
+      <section class="control-grid">
+        <label class="control"><span>화주 선택</span><select class="input" id="shipper-select"></select></label>
+        <label class="control"><span>화주사명</span><input class="input" id="shipper-input" value="피죤"></label>
+        <label class="control"><span>엑셀 업로드</span><input class="input" id="excel-upload" type="file" accept=".xlsx,.xls"></label>
+        <label class="control"><span>업로드 실행</span><button class="btn primary" id="upload-run-btn" type="button">실행</button></label>
+        <label class="control"><span>채널</span><select class="input" id="channel-filter"></select></label>
+        <label class="control"><span>권역</span><select class="input" id="broad-filter"></select></label>
+        <label class="control"><span>센터</span><select class="input" id="center-filter"></select></label>
+        <label class="control"><span>출고 구분</span><select class="input" id="mode-filter"><option value="all">전체</option><option value="direct">직송</option><option value="transfer">거점 이고</option></select></label>
+        <label class="control"><span>직송 기준 PLT</span><input class="input" id="threshold-input" type="number" min="0" step="0.5" value="5"></label>
+        <label class="control"><span>지표</span><select class="input" id="metric-filter"><option value="box">BOX</option><option value="plt">PLT</option><option value="cost">배송비</option></select></label>
+      </section>
+
+      <section class="view active" id="dashboard">
+        <section class="grid kpis" id="kpi-row"></section>
+        <section class="grid two" style="margin-top:14px">
+          <article class="card panel">
+            <div class="panel-head"><h2>채널별 물동량</h2><span class="status" id="bar-label">BOX 기준</span></div>
+            <div class="bars" id="channel-bars"></div>
+          </article>
+          <article class="card panel">
+            <div class="panel-head"><h2>배송비 산출 요약</h2><span class="status">실시간 계산</span></div>
+            <table><thead><tr><th>구분</th><th>기준</th><th>결과</th></tr></thead><tbody id="summary-table"></tbody></table>
+          </article>
+        </section>
+        <section class="grid half" style="margin-top:14px">
+          <article class="card panel">
+            <div class="panel-head"><h2>배송처 TOP</h2><span class="status" id="top-label">BOX 기준</span></div>
+            <table><thead><tr><th>배송처</th><th>채널</th><th>PLT</th><th>BOX</th><th>구분</th></tr></thead><tbody id="top-table"></tbody></table>
+          </article>
+          <article class="card panel">
+            <div class="panel-head"><h2>권역별 물동량 지도</h2><span class="status">분포도</span></div>
+            <div class="map" id="map"></div>
+            <div class="legend"><span><b>원 크기</b> 선택 지표</span><span><b>색상</b> 직송/거점 비중</span><span><b>조건</b> 필터 즉시 반영</span></div>
+          </article>
+        </section>
+      </section>
+
+      <section class="view" id="center">
+        <section class="center-layout">
+          <article class="card panel">
+            <label class="control" style="box-shadow:none; padding:0; border:0"><span>메인센터 선택</span><select class="input" id="main-center-select"></select></label>
+            <div class="center-title" id="center-name"></div>
+            <p class="center-desc" id="center-desc"></p>
+            <div class="tag-row" id="center-tags"></div>
+            <div class="metric-list">
+              <div class="metric-line"><span>연락처</span><b id="center-phone"></b></div>
+              <div class="metric-line"><span>위치</span><b id="center-address"></b></div>
+              <div class="metric-line"><span>특징</span><b id="center-feature"></b></div>
+              <div class="metric-line"><span>교통</span><b id="center-traffic"></b></div>
+              <div class="metric-line"><span>PPT 장표</span><b id="center-slide"></b></div>
+            </div>
+          </article>
+          <article class="card panel">
+            <div class="panel-head"><h2>센터 사진</h2><span class="status">PPT 추출</span></div>
+            <div class="photo">
+              <img id="center-photo" alt="센터 사진">
+              <div class="photo-overlay"><div><strong id="center-photo-title"></strong><span id="center-photo-text"></span></div></div>
+            </div>
+          </article>
+        </section>
+      </section>
+
+      <section class="view" id="volume">
+        <section class="grid half">
+          <article class="card panel">
+            <div class="panel-head"><h2>권역별 집계</h2><span class="status">현재 조건</span></div>
+            <table><thead><tr><th>권역</th><th>배송처</th><th>BOX</th><th>PLT</th><th>배송비</th></tr></thead><tbody id="broad-table"></tbody></table>
+          </article>
+          <article class="card panel">
+            <div class="panel-head"><h2>채널 상세</h2><span class="status">현재 조건</span></div>
+            <table><thead><tr><th>채널</th><th>건수</th><th>BOX</th><th>PLT</th><th>배송비</th></tr></thead><tbody id="channel-table"></tbody></table>
+          </article>
+        </section>
+      </section>
+
+      <section class="view" id="rate">
+        <section class="grid two">
+          <article class="card panel">
+            <div class="panel-head"><h2>직송/거점 산출 결과</h2><span class="status">납품일자+점포 기준</span></div>
+            <table><thead><tr><th>납품일자</th><th>배송처</th><th>권역</th><th>PLT</th><th>차량</th><th>구분</th><th>운임</th></tr></thead><tbody id="rate-table"></tbody></table>
+          </article>
+          <article class="card panel">
+            <div class="panel-head"><h2>계산 로직</h2></div>
+            <div class="formula">
+              <div class="step"><div class="dot">1</div><div><div class="step-title">일자·점포별 PLT 집계</div><div class="step-text">한 점포가 여러 품목을 발주해도 납품일자와 배송처 기준으로 합산합니다.</div></div></div>
+              <div class="step"><div class="dot">2</div><div><div class="step-title">직송/거점 분기</div><div class="step-text">총 환산 PLT가 입력 기준 이상이면 직송, 미만이면 거점 이고로 분기합니다.</div></div></div>
+              <div class="step"><div class="dot">3</div><div><div class="step-title">직송 운임</div><div class="step-text">직송은 차량마스터의 지역별 톤수 단가와 추천 차량을 적용합니다.</div></div></div>
+              <div class="step"><div class="dot">4</div><div><div class="step-title">거점 비용</div><div class="step-text">거점은 센터·배송지구 기준의 이고비와 변동용차비 후보를 합산합니다.</div></div></div>
+            </div>
+          </article>
+        </section>
+      </section>
+
+      <section class="view" id="master">
+        <section class="grid kpis" id="master-kpis"></section>
+        <section class="grid half" style="margin-top:14px">
+          <article class="card panel">
+            <div class="panel-head"><h2>마스터 적용 상태</h2></div>
+            <table><thead><tr><th>마스터</th><th>역할</th><th>상태</th></tr></thead><tbody>
+              <tr><td>출고내역</td><td>납품일자+배송처 기준 물동량 집계</td><td><span class="status">적용</span></td></tr>
+              <tr><td>점포마스터</td><td>주소 기반 센터·배송지구 매핑</td><td><span class="status">적용</span></td></tr>
+              <tr><td>차량마스터</td><td>직송 지역별 톤수 단가 적용</td><td><span class="status">적용</span></td></tr>
+              <tr><td>거점운임마스터</td><td>이고 금액+변동용차비 관리</td><td><span class="status warn">추가 설계</span></td></tr>
+            </tbody></table>
+          </article>
+          <article class="card panel">
+            <div class="panel-head"><h2>보완 포인트</h2></div>
+            <div class="formula">
+              <div class="step"><div class="dot">1</div><div><div class="step-title">주소 표준화</div><div class="step-text">지역 표기 차이를 정리하면 점포마스터 매핑 정확도가 올라갑니다.</div></div></div>
+              <div class="step"><div class="dot">2</div><div><div class="step-title">거점운임 표준표</div><div class="step-text">센터, 배송지구, 이고 금액, 변동용차비 컬럼을 별도 마스터로 추가하면 됩니다.</div></div></div>
+            </div>
+          </article>
+        </section>
+      </section>
+
+      <section class="view" id="quote">
+        <section class="grid two">
+          <article class="card panel">
+            <div class="panel-head"><h2>견적 요약</h2><span class="status">현재 조건</span></div>
+            <table><thead><tr><th>항목</th><th>값</th></tr></thead><tbody id="quote-table"></tbody></table>
+          </article>
+          <article class="card panel">
+            <div class="panel-head"><h2>다운로드 항목</h2></div>
+            <table><thead><tr><th>탭</th><th>내용</th><th>상태</th></tr></thead><tbody>
+              <tr><td>요약</td><td>총 물동량, 총 운임, BOX/PLT 단가</td><td>포함</td></tr>
+              <tr><td>배송처별</td><td>일자+점포 단위 산출 결과</td><td>포함</td></tr>
+              <tr><td>권역별</td><td>권역별 물동량 및 점포 분포</td><td>포함</td></tr>
+              <tr><td>산출근거</td><td>직송 기준 PLT, 운임 적용 방식</td><td>포함</td></tr>
+            </tbody></table>
+          </article>
+        </section>
+      </section>
+
+      <section class="view" id="history">
+        <section class="grid two">
+          <article class="card panel">
+            <div class="panel-head">
+              <h2>화주사별 산출 이력</h2>
+              <span class="status">브라우저 누적 저장</span>
+            </div>
+            <div class="metric-list" style="margin-bottom:12px">
+              <div class="metric-line"><span>저장된 화주 데이터셋</span><b id="shipper-dataset-count">0개</b></div>
+              <div class="metric-line"><span>현재 선택 화주</span><b id="current-shipper-label">피죤</b></div>
+            </div>
+            <table>
+              <thead><tr><th>저장일시</th><th>화주사</th><th>배송건수</th><th>BOX</th><th>PLT</th><th>총 배송비</th><th>BOX 단가</th><th>PLT 단가</th></tr></thead>
+              <tbody id="history-table"></tbody>
+            </table>
+          </article>
+          <article class="card panel">
+            <div class="panel-head"><h2>누적관리 활용</h2></div>
+            <div class="formula">
+              <div class="step"><div class="dot">1</div><div><div class="step-title">화주사명 입력</div><div class="step-text">상단 화주사명에 고객사명을 입력하고 엑셀을 업로드합니다.</div></div></div>
+              <div class="step"><div class="dot">2</div><div><div class="step-title">조건 변경 후 산출</div><div class="step-text">직송 기준 PLT, 채널, 권역, 센터 조건을 바꾸면 결과가 즉시 재계산됩니다.</div></div></div>
+              <div class="step"><div class="dot">3</div><div><div class="step-title">화주 이력 저장</div><div class="step-text">확정하고 싶은 조건에서 저장하면 화주별 단가 이력이 누적됩니다.</div></div></div>
+            </div>
+            <div style="margin-top:14px">
+              <button class="btn" id="clear-history-btn">누적 이력 초기화</button>
+            </div>
+          </article>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    (function () {
+      const defaultApp = window.APP_DATA || { shipments: [], centers: [], meta: {} };
+      let app = defaultApp;
+      const state = { channel: "", broad: "", center: "", mode: "all", threshold: 5, metric: "box" };
+      let selectedExcelFile = null;
+      const labels = {
+        dashboard: ["배송비 단가 산출 대시보드", "필터와 직송 기준값 변경 시 결과가 즉시 재계산됩니다."],
+        center: ["메인센터 요약", "메인센터 선택과 센터별 소개 사진을 확인합니다."],
+        volume: ["물동량 분석", "권역·채널·센터 기준으로 물동량을 분석합니다."],
+        rate: ["배송비 산출", "납품일자+점포 기준으로 직송/거점 비용을 계산합니다."],
+        master: ["마스터 관리", "출고·점포·차량·거점 운임 마스터 적용 상태를 점검합니다."],
+        quote: ["견적 다운로드", "현재 필터 기준 결과를 다운로드합니다."],
+        history: ["화주 누적관리", "화주사별 배송비 단가 산출 이력을 관리합니다."]
+      };
+      const pos = {
+        "수도권": [46, 20], "강원권": [61, 26], "충청권": [38, 42],
+        "영남권": [56, 56], "호남권": [32, 70], "제주권": [44, 88], "기타": [18, 24]
+      };
+
+      const el = (id) => document.getElementById(id);
+      const fmt = (n) => Math.round(Number(n || 0)).toLocaleString("ko-KR");
+      const fmt1 = (n) => Number(n || 0).toLocaleString("ko-KR", { maximumFractionDigits: 1 });
+      const won = (n) => "₩" + Math.round(Number(n || 0)).toLocaleString("ko-KR");
+      const unique = (arr) => [...new Set(arr.filter(Boolean))];
+      const opt = (value, label) => `<option value="${escapeHtml(value)}">${escapeHtml(label || value)}</option>`;
+      const esc = escapeHtml;
+
+      function escapeHtml(value) {
+        return String(value ?? "").replace(/[&<>"']/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[m]));
+      }
+
+      function init() {
+        bindNavigation();
+        setupShipperDatasets();
+        setupFilters();
+        setupCenters();
+        bindActions();
+        renderAll();
+      }
+
+      function bindNavigation() {
+        document.querySelectorAll("nav button").forEach((button) => {
+          button.addEventListener("click", () => showView(button.dataset.view));
+        });
+      }
+
+      function datasetStore() {
+        try {
+          return JSON.parse(localStorage.getItem("hanexShipperDatasets") || "{}");
+        } catch {
+          return {};
+        }
+      }
+
+      function setDatasetStore(store) {
+        localStorage.setItem("hanexShipperDatasets", JSON.stringify(store));
+      }
+
+      function setupShipperDatasets() {
+        renderShipperSelect();
+        el("shipper-select").addEventListener("change", () => {
+          const selected = el("shipper-select").value;
+          const store = datasetStore();
+          if (selected === "__default__") {
+            app = defaultApp;
+            el("shipper-input").value = "피죤";
+          } else if (store[selected]) {
+            app = store[selected];
+            el("shipper-input").value = selected;
+          }
+          resetDataFilters();
+          refreshFilterOptions();
+          setupCenters();
+          syncStateAndRender();
+        });
+      }
+
+      function renderShipperSelect(selectedName) {
+        const store = datasetStore();
+        const options = [[ "__default__", "피죤 (기본)" ], ...Object.keys(store).sort().map((name) => [name, name])];
+        el("shipper-select").innerHTML = options.map(([value, label]) => opt(value, label)).join("");
+        if (selectedName && store[selectedName]) el("shipper-select").value = selectedName;
+        else el("shipper-select").value = "__default__";
+      }
+
+      function saveDatasetForShipper(shipper, dataset) {
+        const name = shipper.trim() || "미지정 화주";
+        const store = datasetStore();
+        store[name] = dataset;
+        setDatasetStore(store);
+        renderShipperSelect(name);
+        el("shipper-select").value = name;
+      }
+
+      function resetDataFilters() {
+        state.channel = "";
+        state.broad = "";
+        state.center = "";
+        el("channel-filter").value = "";
+        el("broad-filter").value = "";
+        el("center-filter").value = "";
+      }
+
+      function showView(view) {
+        document.querySelectorAll("nav button").forEach((b) => b.classList.toggle("active", b.dataset.view === view));
+        document.querySelectorAll(".view").forEach((v) => v.classList.toggle("active", v.id === view));
+        if (labels[view]) {
+          el("page-title").textContent = labels[view][0];
+          el("page-subtitle").textContent = labels[view][1];
+        }
+      }
+
+      function setupFilters() {
+        refreshFilterOptions();
+        ["channel-filter", "broad-filter", "center-filter", "mode-filter", "metric-filter"].forEach((id) => {
+          el(id).addEventListener("change", syncStateAndRender);
+        });
+        el("threshold-input").addEventListener("input", syncStateAndRender);
+        el("excel-upload").addEventListener("change", (event) => {
+          selectedExcelFile = event.target.files && event.target.files[0] ? event.target.files[0] : null;
+        });
+        el("upload-run-btn").addEventListener("click", runSelectedExcelUpload);
+      }
+
+      function refreshFilterOptions() {
+        const current = { channel: state.channel, broad: state.broad, center: state.center };
+        fillSelect("channel-filter", [["", "전체"], ...unique(app.shipments.map((s) => s.channel)).map((v) => [v, v])]);
+        fillSelect("broad-filter", [["", "전체"], ...unique(app.shipments.map((s) => s.broad)).map((v) => [v, v])]);
+        fillSelect("center-filter", [["", "전체"], ...unique(app.shipments.map((s) => s.center)).slice(0, 120).map((v) => [v, v])]);
+        el("channel-filter").value = current.channel || "";
+        el("broad-filter").value = current.broad || "";
+        el("center-filter").value = current.center || "";
+      }
+
+      function fillSelect(id, pairs) {
+        el(id).innerHTML = pairs.map(([value, label]) => opt(value, label)).join("");
+      }
+
+      function syncStateAndRender() {
+        state.channel = el("channel-filter").value;
+        state.broad = el("broad-filter").value;
+        state.center = el("center-filter").value;
+        state.mode = el("mode-filter").value;
+        state.metric = el("metric-filter").value;
+        state.threshold = Number(el("threshold-input").value || 0);
+        renderAll();
+      }
+
+      function setupCenters() {
+        const centers = app.centers || [];
+        fillSelect("main-center-select", centers.map((c) => [c.name, c.name]));
+        el("main-center-select").addEventListener("change", () => renderCenter(el("main-center-select").value));
+        renderCenter(centers[0] && centers[0].name);
+      }
+
+      function bindActions() {
+        el("reset-btn").addEventListener("click", () => {
+          el("channel-filter").value = "";
+          el("broad-filter").value = "";
+          el("center-filter").value = "";
+          el("mode-filter").value = "all";
+          el("metric-filter").value = "box";
+          el("threshold-input").value = "5";
+          syncStateAndRender();
+        });
+        el("download-btn").addEventListener("click", downloadCsv);
+        el("save-history-btn").addEventListener("click", saveCurrentHistory);
+        el("clear-history-btn").addEventListener("click", clearHistory);
+      }
+
+      function classify(row) {
+        const plt = Number(row.pltRound || Math.ceil(row.plt || 0));
+        return plt >= state.threshold ? "direct" : "transfer";
+      }
+
+      function withCost(row) {
+        const mode = classify(row);
+        const cost = mode === "direct" ? Number(row.directCost || 0) : Number(row.transferCost || 0);
+        return { ...row, mode, cost };
+      }
+
+      function rows() {
+        return app.shipments.map(withCost).filter((s) => {
+          if (state.channel && s.channel !== state.channel) return false;
+          if (state.broad && s.broad !== state.broad) return false;
+          if (state.center && s.center !== state.center) return false;
+          if (state.mode !== "all" && s.mode !== state.mode) return false;
+          return true;
+        });
+      }
+
+      function total(list) {
+        return list.reduce((a, s) => {
+          a.box += Number(s.box || 0);
+          a.plt += Number(s.plt || 0);
+          a.pltRound += Number(s.pltRound || 0);
+          a.cost += Number(s.cost || 0);
+          a.direct += s.mode === "direct" ? 1 : 0;
+          a.transfer += s.mode === "transfer" ? 1 : 0;
+          a.codes.add(s.code);
+          return a;
+        }, { box: 0, plt: 0, pltRound: 0, cost: 0, direct: 0, transfer: 0, codes: new Set() });
+      }
+
+      function group(list, key) {
+        const map = new Map();
+        list.forEach((s) => {
+          const name = s[key] || "미지정";
+          if (!map.has(name)) map.set(name, []);
+          map.get(name).push(s);
+        });
+        return [...map.entries()].map(([name, items]) => ({ name, items, ...total(items) }));
+      }
+
+      function metric(item) {
+        if (state.metric === "cost") return item.cost;
+        if (state.metric === "plt") return item.pltRound || item.plt;
+        return item.box;
+      }
+
+      function metricLabel() {
+        return state.metric === "cost" ? "배송비" : state.metric.toUpperCase();
+      }
+
+      function renderAll() {
+        const list = rows();
+        const sum = total(list);
+        renderKpis(list, sum);
+        renderBars(group(list, "channel"));
+        renderSummary(sum);
+        renderTop(list);
+        renderMap(group(list, "broad"));
+        renderVolumeTables(list);
+        renderRateTable(list);
+        renderMaster(list);
+        renderQuote(list, sum);
+        renderHistory();
+      }
+
+      function renderKpis(list, sum) {
+        el("kpi-row").innerHTML = [
+          ["배송 건수", fmt(list.length), "납품일자+배송처 기준"],
+          ["배송처", fmt(sum.codes.size), "배송처코드 고유값"],
+          ["총 BOX", fmt(sum.box), "현재 조건 물동량"],
+          ["총 PLT", fmt1(sum.pltRound || sum.plt), "환산 PLT 기준"],
+          ["총 배송비", won(sum.cost), `직송 ${fmt(sum.direct)} / 거점 ${fmt(sum.transfer)}`]
+        ].map((k) => `<article class="card kpi"><div class="label">${k[0]}</div><div class="value">${k[1]}</div><div class="delta">${k[2]}</div></article>`).join("");
+      }
+
+      function renderBars(groups) {
+        const sorted = groups.sort((a, b) => metric(b) - metric(a)).slice(0, 8);
+        const max = Math.max(1, ...sorted.map(metric));
+        el("bar-label").textContent = `${metricLabel()} 기준`;
+        el("channel-bars").innerHTML = sorted.map((g) => {
+          const value = metric(g);
+          return `<div class="bar-row"><b>${esc(g.name)}</b><div class="track"><div class="fill" style="width:${Math.max(3, value / max * 100)}%"></div></div><span>${state.metric === "cost" ? won(value) : fmt1(value)}</span></div>`;
+        }).join("");
+      }
+
+      function renderSummary(sum) {
+        const boxUnit = sum.box ? sum.cost / sum.box : 0;
+        const pltUnit = sum.plt ? sum.cost / sum.plt : 0;
+        el("summary-table").innerHTML = [
+          ["직송 기준", "환산 PLT 이상", `${state.threshold} PLT`],
+          ["직송 건수", "차량마스터 지역별 톤수 단가", fmt(sum.direct)],
+          ["거점 건수", "이고비 + 변동용차비", fmt(sum.transfer)],
+          ["BOX 단가", "총 배송비 ÷ BOX", won(boxUnit)],
+          ["PLT 단가", "총 배송비 ÷ PLT", won(pltUnit)]
+        ].map((r) => `<tr><td>${r[0]}</td><td>${r[1]}</td><td><b>${r[2]}</b></td></tr>`).join("");
+      }
+
+      function renderTop(list) {
+        const sorted = [...list].sort((a, b) => metric(b) - metric(a)).slice(0, 12);
+        el("top-label").textContent = `${metricLabel()} 기준`;
+        el("top-table").innerHTML = sorted.map((s) => rowTop(s)).join("");
+      }
+
+      function rowTop(s) {
+        const modeText = s.mode === "direct" ? "직송" : "거점";
+        const cls = s.mode === "direct" ? "direct" : "warn";
+        return `<tr><td>${esc(s.name)}</td><td>${esc(s.channel)}</td><td>${fmt1(s.pltRound || s.plt)}</td><td>${fmt(s.box)}</td><td><span class="status ${cls}">${modeText}</span></td></tr>`;
+      }
+
+      function renderMap(groups) {
+        const max = Math.max(1, ...groups.map(metric));
+        el("map").innerHTML = groups.map((g) => {
+          const p = pos[g.name] || pos["기타"];
+          const size = 42 + (metric(g) / max) * 46;
+          const share = g.direct / Math.max(1, g.direct + g.transfer);
+          const cls = share > 0.65 ? "direct" : share < 0.35 ? "transfer" : "mixed";
+          const value = state.metric === "cost" ? won(metric(g)).replace("₩", "") : fmt1(metric(g));
+          return `<div class="pin ${cls}" style="left:${p[0]}%; top:${p[1]}%; width:${size}px; height:${size}px; transform:translate(-50%,-50%)">${esc(g.name)}<br>${value}</div>`;
+        }).join("");
+      }
+
+      function renderVolumeTables(list) {
+        el("broad-table").innerHTML = group(list, "broad").sort((a, b) => b.box - a.box).map((g) => `<tr><td>${esc(g.name)}</td><td>${fmt(g.codes.size)}</td><td>${fmt(g.box)}</td><td>${fmt1(g.pltRound || g.plt)}</td><td>${won(g.cost)}</td></tr>`).join("");
+        el("channel-table").innerHTML = group(list, "channel").sort((a, b) => b.box - a.box).map((g) => `<tr><td>${esc(g.name)}</td><td>${fmt(g.items.length)}</td><td>${fmt(g.box)}</td><td>${fmt1(g.pltRound || g.plt)}</td><td>${won(g.cost)}</td></tr>`).join("");
+      }
+
+      function renderRateTable(list) {
+        const sorted = [...list].sort((a, b) => (b.pltRound || b.plt) - (a.pltRound || a.plt)).slice(0, 24);
+        el("rate-table").innerHTML = sorted.map((s) => {
+          const modeText = s.mode === "direct" ? "직송" : "거점";
+          const cls = s.mode === "direct" ? "direct" : "warn";
+          return `<tr><td>${esc(s.date)}</td><td>${esc(s.name)}</td><td>${esc(s.broad)}</td><td>${fmt1(s.pltRound || s.plt)}</td><td>${esc(s.vehicle)}</td><td><span class="status ${cls}">${modeText}</span></td><td>${won(s.cost)}</td></tr>`;
+        }).join("");
+      }
+
+      function renderMaster(list) {
+        el("master-kpis").innerHTML = [
+          ["출고 원천", fmt(app.meta.rawLines), "엑셀 출고내역 라인"],
+          ["계산 단위", fmt(app.meta.groupedShipments), "납품일자+배송처 묶음"],
+          ["점포 매핑", fmt(app.meta.stores), "배송처코드 기준"],
+          ["센터 후보", fmt(app.centers.length), "PPT 소개 센터"],
+          ["현재 결과", fmt(list.length), "필터 적용 건수"]
+        ].map((k) => `<article class="card kpi"><div class="label">${k[0]}</div><div class="value">${k[1]}</div><div class="delta">${k[2]}</div></article>`).join("");
+      }
+
+      function renderQuote(list, sum) {
+        el("quote-table").innerHTML = [
+          ["적용 채널", state.channel || "전체"],
+          ["적용 권역", state.broad || "전체"],
+          ["적용 센터", state.center || "전체"],
+          ["직송 기준 PLT", state.threshold],
+          ["배송 건수", fmt(list.length)],
+          ["총 배송비", won(sum.cost)],
+          ["BOX 단가", won(sum.box ? sum.cost / sum.box : 0)],
+          ["PLT 단가", won(sum.plt ? sum.cost / sum.plt : 0)]
+        ].map((r) => `<tr><td>${r[0]}</td><td>${r[1]}</td></tr>`).join("");
+      }
+
+      function renderCenter(name) {
+        const c = app.centers.find((x) => x.name === name) || app.centers[0];
+        if (!c) return;
+        el("center-name").textContent = c.name;
+        el("center-desc").textContent = `${c.broad || ""} 메인센터 후보입니다. 배송비 산출의 출고센터 조건과 권역 분석 기준으로 활용할 수 있습니다.`;
+        el("center-tags").innerHTML = (c.tags || []).map((t) => `<span class="tag">${esc(t)}</span>`).join("");
+        el("center-phone").textContent = c.phone || "";
+        el("center-address").textContent = c.address || "";
+        el("center-feature").textContent = c.feature || "";
+        el("center-traffic").textContent = c.traffic || "";
+        el("center-slide").textContent = `Slide ${c.slide || ""}`;
+        el("center-photo").src = c.image || "";
+        el("center-photo-title").textContent = c.name;
+        el("center-photo-text").textContent = `회사소개서 ${c.slide || ""}번 장표에서 추출한 센터 이미지입니다.`;
+      }
+
+      function parseNumber(value) {
+        const cleaned = String(value ?? "").replace(/,/g, "").trim();
+        const n = Number(cleaned);
+        return Number.isFinite(n) ? n : 0;
+      }
+
+      function normalizeRegion(value) {
+        return String(value || "")
+          .replace(/\s+/g, "")
+          .replace(/^경기$/, "경기도")
+          .replace(/^강원$/, "강원도")
+          .replace(/^충북$/, "충청북도")
+          .replace(/^충남$/, "충청남도")
+          .replace(/^전북$/, "전라북도")
+          .replace(/^전남$/, "전라남도")
+          .replace(/^경북$/, "경상북도")
+          .replace(/^경남$/, "경상남도")
+          .replace(/^제주$/, "제주특별자치도");
+      }
+
+      function broadFromSido(sido) {
+        const s = normalizeRegion(sido);
+        if (/서울|인천|경기/.test(s)) return "수도권";
+        if (/강원/.test(s)) return "강원권";
+        if (/충청|세종|대전/.test(s)) return "충청권";
+        if (/경상|부산|대구|울산/.test(s)) return "영남권";
+        if (/전라|광주/.test(s)) return "호남권";
+        if (/제주/.test(s)) return "제주권";
+        return "기타";
+      }
+
+      function splitAddress(address) {
+        const parts = String(address || "").replace(/[()]/g, " ").split(/\s+/).filter(Boolean);
+        const sido = normalizeRegion(parts[0] || "");
+        const sigungu = parts[1] || "";
+        const eup = parts[2] || "";
+        return { sido, sigungu, eup, region: `${sido} ${sigungu}`.trim(), broad: broadFromSido(sido) };
+      }
+
+      function pick(row, names) {
+        for (const name of names) {
+          if (row[name] !== undefined && row[name] !== null && row[name] !== "") return row[name];
+        }
+        return "";
+      }
+
+      function chooseVehicle(plt) {
+        const value = Number(plt || 0);
+        if (value >= 18) return "11톤";
+        if (value >= 12) return "5톤장축";
+        if (value >= 10) return "5톤";
+        if (value >= 4) return "3.5톤";
+        if (value >= 3) return "2.5톤";
+        if (value >= 2) return "1.4톤";
+        if (value >= 1) return "1톤";
+        return "퀵";
+      }
+
+      function sheetRows(workbook, sheetName) {
+        const name = workbook.SheetNames.find((n) => n.replace(/\s+/g, "") === sheetName.replace(/\s+/g, "")) || sheetName;
+        const sheet = workbook.Sheets[name];
+        return sheet ? XLSX.utils.sheet_to_json(sheet, { defval: "", raw: false }) : [];
+      }
+
+      function buildShipmentsFromWorkbook(workbook) {
+        const outbound = sheetRows(workbook, "출고내역");
+        const stores = sheetRows(workbook, "점포마스터");
+        const vehicles = sheetRows(workbook, "차량마스터");
+        if (!outbound.length) throw new Error("출고내역 시트를 찾을 수 없습니다.");
+
+        const storeRows = stores.map((r) => ({
+          opCenter: pick(r, ["운영센터", "출고센터"]),
+          sido: normalizeRegion(pick(r, ["시도"])),
+          sigungu: String(pick(r, ["시군구"])).replace(/\s+/g, ""),
+          eup: String(pick(r, ["읍면동"])).replace(/\s+/g, ""),
+          center: pick(r, ["센터", "출고센터", "운영센터"]),
+          district: pick(r, ["지구", "배송지구"]),
+          whCode: pick(r, ["창고코드"])
+        })).filter((r) => r.sido && r.sigungu);
+
+        const rateMap = new Map();
+        vehicles.forEach((r) => {
+          const dest = String(pick(r, ["도착지"])).replace(/\s+/g, "");
+          if (!dest) return;
+          rateMap.set(dest, {
+            "11톤": parseNumber(r["11톤"]),
+            "5톤장축": parseNumber(r["5톤장축"]),
+            "5톤": parseNumber(r["5톤"]),
+            "3.5톤": parseNumber(r["3.5톤"]),
+            "2.5톤": parseNumber(r["2.5톤"]),
+            "1.4톤": parseNumber(r["1.4톤"]),
+            "1톤": parseNumber(r["1톤"]),
+            "퀵": parseNumber(r["퀵"])
+          });
+        });
+
+        function mapStore(address) {
+          const parsed = splitAddress(address);
+          const sigungu = parsed.sigungu.replace(/\s+/g, "");
+          const eup = parsed.eup.replace(/\s+/g, "");
+          let hit = storeRows.find((s) => s.sido === parsed.sido && s.sigungu === sigungu && (!s.eup || s.eup === eup));
+          if (!hit) hit = storeRows.find((s) => s.sido === parsed.sido && s.sigungu === sigungu);
+          return {
+            ...parsed,
+            center: hit?.center || hit?.opCenter || (parsed.broad === "수도권" ? "이천센터" : `${parsed.broad}거점`),
+            district: hit?.district || "",
+            whCode: hit?.whCode || ""
+          };
+        }
+
+        function matchRate(region, vehicle) {
+          const key = String(region || "").replace(/\s+/g, "");
+          const exact = rateMap.get(key);
+          if (exact && exact[vehicle]) return exact[vehicle];
+          const fallback = [...rateMap.keys()].find((k) => key.startsWith(k) || k.startsWith(key));
+          return fallback ? (rateMap.get(fallback)[vehicle] || 0) : 0;
+        }
+
+        const groups = new Map();
+        outbound.forEach((r) => {
+          const date = pick(r, ["납품일자", "출고일자", "일자"]);
+          const code = String(pick(r, ["배송처코드", "점포코드", "납품처코드"]));
+          const name = String(pick(r, ["배송처명", "점포명", "납품처명"]));
+          const address = String(pick(r, ["주소", "배송처주소", "점포주소"]));
+          const channel = String(pick(r, ["채널", "유통채널"]));
+          const box = parseNumber(pick(r, ["출고수량(BOX)", "출고수량", "BOX", "박스"]));
+          const plt = parseNumber(pick(r, ["출고수량(PLT)", "PLT", "파렛트"]));
+          const pltRound = parseNumber(pick(r, ["PLT 환산", "환산PLT", "파렛트환산"]));
+          const key = `${date}|${code}|${name}`;
+          if (!groups.has(key)) {
+            const mapped = mapStore(address);
+            groups.set(key, { date, code, name, address, channel, ...mapped, box: 0, plt: 0, pltRound: 0, lines: 0 });
+          }
+          const group = groups.get(key);
+          group.box += box;
+          group.plt += plt;
+          group.pltRound += pltRound;
+          group.lines += 1;
+        });
+
+        const shipments = [...groups.values()].map((g) => {
+          const pltBase = g.pltRound || Math.ceil(g.plt || 0);
+          const vehicle = chooseVehicle(pltBase);
+          const directCost = matchRate(g.region, vehicle);
+          const transferCost = Math.round(18000 + pltBase * 3500 + (g.broad === "제주권" ? 25000 : 0));
+          return {
+            ...g,
+            box: Number(g.box.toFixed(2)),
+            plt: Number(g.plt.toFixed(3)),
+            pltRound: Number(g.pltRound.toFixed(2)),
+            vehicle,
+            directCost,
+            transferCost
+          };
+        });
+
+        return {
+          ...app,
+          shipments,
+          meta: {
+            rawLines: outbound.length,
+            groupedShipments: shipments.length,
+            products: new Set(outbound.map((r) => pick(r, ["상품코드", "고객사상품코드"]))).size,
+            stores: new Set(shipments.map((s) => s.code)).size
+          }
+        };
+      }
+
+      function runSelectedExcelUpload() {
+        const file = selectedExcelFile;
+        if (!file) {
+          alert("먼저 엑셀 파일을 선택해주세요.");
+          return;
+        }
+        if (!window.XLSX) {
+          alert("엑셀 업로드 모듈을 불러오지 못했습니다. 인터넷 연결 후 다시 시도해주세요.");
+          return;
+        }
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          try {
+            const workbook = XLSX.read(e.target.result, { type: "array", cellDates: true });
+            const shipper = el("shipper-input").value.trim() || file.name.replace(/\.(xlsx|xls)$/i, "");
+            const alreadyExists = !!datasetStore()[shipper] || shipper === "피죤";
+            app = buildShipmentsFromWorkbook(workbook);
+            app.shipper = shipper;
+            saveDatasetForShipper(shipper, app);
+            resetDataFilters();
+            refreshFilterOptions();
+            setupCenters();
+            syncStateAndRender();
+            alert(`${shipper} ${alreadyExists ? "데이터가 업데이트" : "신규 화주사가 정상 업로드"}되었습니다. 집계 건수: ${app.meta.groupedShipments.toLocaleString("ko-KR")}건`);
+          } catch (error) {
+            console.error(error);
+            alert(`엑셀 업로드 중 오류가 발생했습니다: ${error.message}`);
+          }
+        };
+        reader.readAsArrayBuffer(file);
+      }
+
+      function historyItems() {
+        try {
+          return JSON.parse(localStorage.getItem("hanexQuoteHistory") || "[]");
+        } catch {
+          return [];
+        }
+      }
+
+      function setHistoryItems(items) {
+        localStorage.setItem("hanexQuoteHistory", JSON.stringify(items));
+      }
+
+      function saveCurrentHistory() {
+        const list = rows();
+        const sum = total(list);
+        const shipper = el("shipper-input").value.trim() || "미지정 화주";
+        if (app && app.shipments && app.shipments.length) {
+          app.shipper = shipper;
+          saveDatasetForShipper(shipper, app);
+        }
+        const item = {
+          savedAt: new Date().toLocaleString("ko-KR"),
+          shipper,
+          channel: state.channel || "전체",
+          broad: state.broad || "전체",
+          threshold: state.threshold,
+          count: list.length,
+          box: Math.round(sum.box),
+          plt: Number((sum.pltRound || sum.plt).toFixed(1)),
+          cost: Math.round(sum.cost),
+          boxUnit: sum.box ? Math.round(sum.cost / sum.box) : 0,
+          pltUnit: sum.plt ? Math.round(sum.cost / sum.plt) : 0
+        };
+        const items = [item, ...historyItems()].slice(0, 200);
+        setHistoryItems(items);
+        renderHistory();
+        alert(`${shipper} 산출 이력을 저장했습니다.`);
+      }
+
+      function renderHistory() {
+        const items = historyItems();
+        const datasetNames = Object.keys(datasetStore());
+        el("shipper-dataset-count").textContent = `${datasetNames.length + 1}개`;
+        el("current-shipper-label").textContent = el("shipper-input").value.trim() || "피죤";
+        el("history-table").innerHTML = items.length ? items.map((item) => `<tr><td>${esc(item.savedAt)}</td><td>${esc(item.shipper)}</td><td>${fmt(item.count)}</td><td>${fmt(item.box)}</td><td>${fmt1(item.plt)}</td><td>${won(item.cost)}</td><td>${won(item.boxUnit)}</td><td>${won(item.pltUnit)}</td></tr>`).join("") : '<tr><td colspan="8">저장된 화주 산출 이력이 없습니다.</td></tr>';
+      }
+
+      function clearHistory() {
+        if (!confirm("저장된 화주 산출 이력을 모두 삭제할까요?")) return;
+        localStorage.removeItem("hanexQuoteHistory");
+        renderHistory();
+      }
+
+      function downloadCsv() {
+        const list = rows();
+        const header = ["납품일자", "배송처코드", "배송처명", "채널", "권역", "센터", "배송지구", "BOX", "PLT", "차량", "구분", "운임"];
+        const body = list.map((s) => [s.date, s.code, s.name, s.channel, s.broad, s.center, s.district, s.box, s.pltRound || s.plt, s.vehicle, s.mode === "direct" ? "직송" : "거점", s.cost]);
+        const csv = [header, ...body].map((r) => r.map((v) => `"${String(v ?? "").replace(/"/g, '""')}"`).join(",")).join("\n");
+        const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = "배송비_산출결과.csv";
+        a.click();
+        URL.revokeObjectURL(a.href);
+      }
+
+      try {
+        init();
+      } catch (err) {
+        console.error(err);
+        el("kpi-row").innerHTML = '<article class="card kpi"><div class="label">앱 로딩</div><div class="value">확인 필요</div><div class="delta">데이터 연결을 확인해주세요.</div></article>';
+      }
+    })();
+  </script>
+</body>
+</html>
