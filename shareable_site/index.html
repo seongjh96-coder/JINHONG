@@ -1143,6 +1143,18 @@
         };
       }
 
+      function inferShipperFromWorkbook(workbook, fallbackName) {
+        const outbound = sheetRows(workbook, "출고내역");
+        const counts = new Map();
+        outbound.forEach((row) => {
+          const name = String(pick(row, ["화주명", "화주", "화주사명", "고객사", "고객사명"])).trim();
+          if (!name) return;
+          counts.set(name, (counts.get(name) || 0) + 1);
+        });
+        const ranked = [...counts.entries()].sort((a, b) => b[1] - a[1]);
+        return ranked[0]?.[0] || fallbackName || "미지정 화주";
+      }
+
       function runSelectedExcelUpload() {
         const file = selectedExcelFile;
         if (!file) {
@@ -1157,7 +1169,8 @@
         reader.onload = (e) => {
           try {
             const workbook = XLSX.read(e.target.result, { type: "array", cellDates: true });
-            const shipper = el("shipper-input").value.trim() || file.name.replace(/\.(xlsx|xls)$/i, "");
+            const fallbackShipper = el("shipper-input").value.trim() || file.name.replace(/\.(xlsx|xls)$/i, "");
+            const shipper = inferShipperFromWorkbook(workbook, fallbackShipper);
             const alreadyExists = !!datasetStore()[shipper] || shipper === "피죤";
             app = buildShipmentsFromWorkbook(workbook);
             app.shipper = shipper;
