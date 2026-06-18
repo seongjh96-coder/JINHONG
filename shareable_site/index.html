@@ -462,7 +462,7 @@
 
       <section class="control-grid">
         <label class="control"><span>화주 선택</span><select class="input" id="shipper-select"></select></label>
-        <label class="control"><span>화주사명</span><input class="input" id="shipper-input" value="피죤"></label>
+        <label class="control"><span>화주사명</span><input class="input" id="shipper-input" placeholder="엑셀 업로드 시 자동 인식"></label>
         <label class="control"><span>엑셀 업로드</span><input class="input" id="excel-upload" type="file" accept=".xlsx,.xls"></label>
         <label class="control"><span>업로드 실행</span><button class="btn primary" id="upload-run-btn" type="button">실행</button></label>
         <label class="control"><span>채널</span><select class="input" id="channel-filter"></select></label>
@@ -603,7 +603,7 @@
             </div>
             <div class="metric-list" style="margin-bottom:12px">
               <div class="metric-line"><span>저장된 화주 데이터셋</span><b id="shipper-dataset-count">0개</b></div>
-              <div class="metric-line"><span>현재 선택 화주</span><b id="current-shipper-label">피죤</b></div>
+              <div class="metric-line"><span>현재 선택 화주</span><b id="current-shipper-label">선택 없음</b></div>
             </div>
             <table>
               <thead><tr><th>저장일시</th><th>화주사</th><th>배송건수</th><th>BOX</th><th>PLT</th><th>총 배송비</th><th>BOX 단가</th><th>PLT 단가</th></tr></thead>
@@ -629,7 +629,13 @@
   <script>
     (function () {
       const defaultApp = window.APP_DATA || { shipments: [], centers: [], meta: {} };
-      let app = defaultApp;
+      const emptyApp = {
+        shipments: [],
+        centers: defaultApp.centers || [],
+        meta: { rawLines: 0, groupedShipments: 0, products: 0, stores: 0 },
+        shipper: ""
+      };
+      let app = emptyApp;
       const state = { channel: "", broad: "", center: "", mode: "all", threshold: 5, metric: "box" };
       let selectedExcelFile = null;
       const labels = {
@@ -686,13 +692,14 @@
       }
 
       function setupShipperDatasets() {
+        cleanupLegacyDefaultShipper();
         renderShipperSelect();
         el("shipper-select").addEventListener("change", () => {
           const selected = el("shipper-select").value;
           const store = datasetStore();
-          if (selected === "__default__") {
-            app = defaultApp;
-            el("shipper-input").value = "피죤";
+          if (selected === "__empty__") {
+            app = emptyApp;
+            el("shipper-input").value = "";
           } else if (store[selected]) {
             app = store[selected];
             el("shipper-input").value = selected;
@@ -704,12 +711,22 @@
         });
       }
 
+      function cleanupLegacyDefaultShipper() {
+        if (localStorage.getItem("hanexLegacyDefaultShipperRemoved") === "yes") return;
+        const store = datasetStore();
+        if (store["피죤"]) {
+          delete store["피죤"];
+          setDatasetStore(store);
+        }
+        localStorage.setItem("hanexLegacyDefaultShipperRemoved", "yes");
+      }
+
       function renderShipperSelect(selectedName) {
         const store = datasetStore();
-        const options = [[ "__default__", "피죤 (기본)" ], ...Object.keys(store).sort().map((name) => [name, name])];
+        const options = [[ "__empty__", "화주를 선택하거나 업로드하세요" ], ...Object.keys(store).sort().map((name) => [name, name])];
         el("shipper-select").innerHTML = options.map(([value, label]) => opt(value, label)).join("");
         if (selectedName && store[selectedName]) el("shipper-select").value = selectedName;
-        else el("shipper-select").value = "__default__";
+        else el("shipper-select").value = "__empty__";
       }
 
       function saveDatasetForShipper(shipper, dataset) {
@@ -1171,7 +1188,7 @@
             const workbook = XLSX.read(e.target.result, { type: "array", cellDates: true });
             const fallbackShipper = el("shipper-input").value.trim() || file.name.replace(/\.(xlsx|xls)$/i, "");
             const shipper = inferShipperFromWorkbook(workbook, fallbackShipper);
-            const alreadyExists = !!datasetStore()[shipper] || shipper === "피죤";
+            const alreadyExists = !!datasetStore()[shipper];
             app = buildShipmentsFromWorkbook(workbook);
             app.shipper = shipper;
             saveDatasetForShipper(shipper, app);
@@ -1231,7 +1248,7 @@
         const items = historyItems();
         const datasetNames = Object.keys(datasetStore());
         el("shipper-dataset-count").textContent = `${datasetNames.length + 1}개`;
-        el("current-shipper-label").textContent = el("shipper-input").value.trim() || "피죤";
+        el("current-shipper-label").textContent = el("shipper-input").value.trim() || "선택 없음";
         el("history-table").innerHTML = items.length ? items.map((item) => `<tr><td>${esc(item.savedAt)}</td><td>${esc(item.shipper)}</td><td>${fmt(item.count)}</td><td>${fmt(item.box)}</td><td>${fmt1(item.plt)}</td><td>${won(item.cost)}</td><td>${won(item.boxUnit)}</td><td>${won(item.pltUnit)}</td></tr>`).join("") : '<tr><td colspan="8">저장된 화주 산출 이력이 없습니다.</td></tr>';
       }
 
