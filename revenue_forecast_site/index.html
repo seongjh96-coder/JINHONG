@@ -2485,58 +2485,64 @@
       }
 
       function renderCustomerSuggestions() {
-        const target = el("analysis-customer-suggestions");
-        const rawQuery = el("analysis-customer").value.trim();
-        const query = normalizeCustomerSearch(rawQuery);
-        if (!query) {
-          target.hidden = true;
-          target.innerHTML = "";
-          state.customerSuggestionIndex = -1;
-          el("analysis-customer").removeAttribute("aria-activedescendant");
-          el("analysis-customer").setAttribute("aria-expanded", "false");
-          return;
-        }
-        const matches = state.customerOptions
-          .map((customer) => ({ customer, normalized: normalizeCustomerSearch(customer) }))
-          .filter((item) => item.normalized.includes(query))
-          .sort((a, b) => {
-            const aStarts = a.normalized.startsWith(query) ? 0 : 1;
-            const bStarts = b.normalized.startsWith(query) ? 0 : 1;
-            return aStarts - bStarts || a.customer.localeCompare(b.customer, "ko", { numeric: true });
-          })
-          .slice(0, 10);
-        target.innerHTML = matches.length
-          ? matches.map((item, index) => `<button class="customer-suggestion" id="customer-suggestion-${index}" type="button" role="option" aria-selected="false" data-customer-suggestion-index="${index}" data-customer-suggestion="${esc(item.customer)}" title="${esc(item.customer)}">${esc(item.customer)}</button>`).join("")
-          : `<div class="empty" style="padding:12px">일치하는 고객사가 없습니다.</div>`;
-        state.customerSuggestionIndex = -1;
-        target.hidden = false;
-        el("analysis-customer").setAttribute("aria-expanded", "true");
-      }
+  const input = el("analysis-customer");
+  const box = el("analysis-customer-suggestions");
+  const query = input.value.trim().toLowerCase();
+  const options = unique(state.customerOptions || []);
 
-      function setCustomerSuggestionIndex(index, shouldScroll = true, shouldFocus = false) {
-        const suggestions = [...el("analysis-customer-suggestions").querySelectorAll("[data-customer-suggestion]")];
-        if (!suggestions.length) return;
-        state.customerSuggestionIndex = Math.max(0, Math.min(index, suggestions.length - 1));
-        suggestions.forEach((button, buttonIndex) => {
-          const active = buttonIndex === state.customerSuggestionIndex;
-          button.classList.toggle("active", active);
-          button.setAttribute("aria-selected", String(active));
-        });
-        const activeButton = suggestions[state.customerSuggestionIndex];
-        el("analysis-customer").setAttribute("aria-activedescendant", activeButton.id);
-        if (shouldScroll) activeButton.scrollIntoView({ block: "nearest" });
-        if (shouldFocus) activeButton.focus({ preventScroll: true });
-      }
+  const matches = (query
+    ? options.filter((name) => name.toLowerCase().includes(query))
+    : options
+  ).slice(0, 50);
 
-      function applyCustomerSuggestion(customer) {
-        el("analysis-customer").value = customer;
-        state.analysis.customer = customer;
-        state.customerSuggestionIndex = -1;
-        el("analysis-customer").removeAttribute("aria-activedescendant");
-        el("analysis-customer").setAttribute("aria-expanded", "false");
-        el("analysis-customer-suggestions").hidden = true;
-        render();
-      }
+  state.customerSuggestionIndex = -1;
+  input.removeAttribute("aria-activedescendant");
+
+  if (!matches.length) {
+    box.innerHTML = "";
+    box.hidden = true;
+    input.setAttribute("aria-expanded", "false");
+    return;
+  }
+
+  box.innerHTML = matches.map((name, i) =>
+    `<button type="button" class="customer-suggestion" role="option"
+       id="customer-suggestion-${i}"
+       data-customer-suggestion="${esc(name)}"
+       data-customer-suggestion-index="${i}">${esc(name)}</button>`
+  ).join("");
+  box.hidden = false;
+  input.setAttribute("aria-expanded", "true");
+}
+
+      function setCustomerSuggestionIndex(index, scroll = true, focus = false) {
+  const box = el("analysis-customer-suggestions");
+  const items = [...box.querySelectorAll("[data-customer-suggestion-index]")];
+  if (!items.length) return;
+
+  index = Math.max(0, Math.min(index, items.length - 1));
+  state.customerSuggestionIndex = index;
+
+  items.forEach((item, i) => item.classList.toggle("active", i === index));
+
+  const active = items[index];
+  el("analysis-customer").setAttribute("aria-activedescendant", active.id);
+
+  if (scroll) active.scrollIntoView({ block: "nearest" });
+  if (focus) active.focus();
+}
+
+
+      function applyCustomerSuggestion(name) {
+  const input = el("analysis-customer");
+  input.value = name;
+  state.analysis.customer = name;
+  el("analysis-customer-suggestions").hidden = true;
+  state.customerSuggestionIndex = -1;
+  input.removeAttribute("aria-activedescendant");
+  input.setAttribute("aria-expanded", "false");
+  render();
+}
 
       function renderMonthSlicer() {
         const allButton = `<button class="month-chip${state.analysis.allMonths ? " active" : ""}" type="button" data-analysis-all title="전체 월">전체</button>`;
