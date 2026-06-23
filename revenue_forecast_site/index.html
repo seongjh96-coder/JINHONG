@@ -363,7 +363,8 @@
     }
 
     .customer-suggestion:hover,
-    .customer-suggestion:focus {
+    .customer-suggestion:focus,
+    .customer-suggestion.active {
       background: var(--soft);
       outline: none;
     }
@@ -1340,7 +1341,7 @@
         rows: [], salesFile: null, otherFile: null, team: "", account: "", customer: "",
         metric: "forecast", period: "current", masterDrafts: [], lastStatus: "대기 중",
         analysis: { year: "", months: [], allMonths: false, businessTeam: "", category: "", manager: "", center: "", customer: "" },
-        customerOptions: [], forecastDraft: [], forecastMeta: null, businessPlanDraft: [], businessPlanMeta: null
+        customerOptions: [], customerSuggestionIndex: -1, forecastDraft: [], forecastMeta: null, businessPlanDraft: [], businessPlanMeta: null
       };
       const labels = {
         dashboard: ["유통사업부 매출 실적/예측 집계", "HELIOS에서 Export(Org)를 실행해 목표, 예측, 추정, 실적을 집계합니다."],
@@ -1422,12 +1423,25 @@
         el("analysis-customer").addEventListener("input", renderCustomerSuggestions);
         el("analysis-customer").addEventListener("focus", renderCustomerSuggestions);
         el("analysis-customer").addEventListener("keydown", (event) => {
-          if (event.key === "Escape") el("analysis-customer-suggestions").hidden = true;
+          const suggestions = [...el("analysis-customer-suggestions").querySelectorAll("[data-customer-suggestion]")];
+          if (event.key === "ArrowDown" && suggestions.length) {
+            event.preventDefault();
+            setCustomerSuggestionIndex((state.customerSuggestionIndex + 1) % suggestions.length);
+          }
+          if (event.key === "ArrowUp" && suggestions.length) {
+            event.preventDefault();
+            setCustomerSuggestionIndex(state.customerSuggestionIndex <= 0 ? suggestions.length - 1 : state.customerSuggestionIndex - 1);
+          }
+          if (event.key === "Escape") {
+            el("analysis-customer-suggestions").hidden = true;
+            state.customerSuggestionIndex = -1;
+            el("analysis-customer").removeAttribute("aria-activedescendant");
+          }
           if (event.key === "Enter") {
-            const firstMatch = el("analysis-customer-suggestions").querySelector("[data-customer-suggestion]");
-            if (firstMatch) {
+            const selected = suggestions[state.customerSuggestionIndex] || suggestions[0];
+            if (selected) {
               event.preventDefault();
-              applyCustomerSuggestion(firstMatch.dataset.customerSuggestion);
+              applyCustomerSuggestion(selected.dataset.customerSuggestion);
             }
           }
         });
@@ -1442,6 +1456,10 @@
           const button = event.target.closest("[data-customer-suggestion]");
           if (!button) return;
           applyCustomerSuggestion(button.dataset.customerSuggestion);
+        });
+        el("analysis-customer-suggestions").addEventListener("mousemove", (event) => {
+          const button = event.target.closest("[data-customer-suggestion-index]");
+          if (button) setCustomerSuggestionIndex(Number(button.dataset.customerSuggestionIndex), false);
         });
         document.addEventListener("click", (event) => {
           if (!event.target.closest(".customer-search")) el("analysis-customer-suggestions").hidden = true;
@@ -2449,6 +2467,8 @@
         if (!query) {
           target.hidden = true;
           target.innerHTML = "";
+          state.customerSuggestionIndex = -1;
+          el("analysis-customer").removeAttribute("aria-activedescendant");
           return;
         }
         const matches = state.customerOptions
@@ -2461,14 +2481,31 @@
           })
           .slice(0, 10);
         target.innerHTML = matches.length
-          ? matches.map((item) => `<button class="customer-suggestion" type="button" role="option" data-customer-suggestion="${esc(item.customer)}" title="${esc(item.customer)}">${esc(item.customer)}</button>`).join("")
+          ? matches.map((item, index) => `<button class="customer-suggestion" id="customer-suggestion-${index}" type="button" role="option" aria-selected="false" data-customer-suggestion-index="${index}" data-customer-suggestion="${esc(item.customer)}" title="${esc(item.customer)}">${esc(item.customer)}</button>`).join("")
           : `<div class="empty" style="padding:12px">일치하는 고객사가 없습니다.</div>`;
+        state.customerSuggestionIndex = -1;
         target.hidden = false;
+      }
+
+      function setCustomerSuggestionIndex(index, shouldScroll = true) {
+        const suggestions = [...el("analysis-customer-suggestions").querySelectorAll("[data-customer-suggestion]")];
+        if (!suggestions.length) return;
+        state.customerSuggestionIndex = Math.max(0, Math.min(index, suggestions.length - 1));
+        suggestions.forEach((button, buttonIndex) => {
+          const active = buttonIndex === state.customerSuggestionIndex;
+          button.classList.toggle("active", active);
+          button.setAttribute("aria-selected", String(active));
+        });
+        const activeButton = suggestions[state.customerSuggestionIndex];
+        el("analysis-customer").setAttribute("aria-activedescendant", activeButton.id);
+        if (shouldScroll) activeButton.scrollIntoView({ block: "nearest" });
       }
 
       function applyCustomerSuggestion(customer) {
         el("analysis-customer").value = customer;
         state.analysis.customer = customer;
+        state.customerSuggestionIndex = -1;
+        el("analysis-customer").removeAttribute("aria-activedescendant");
         el("analysis-customer-suggestions").hidden = true;
         render();
       }
