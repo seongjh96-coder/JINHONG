@@ -1424,6 +1424,10 @@
         el("analysis-customer").addEventListener("input", renderCustomerSuggestions);
         el("analysis-customer").addEventListener("focus", renderCustomerSuggestions);
         el("analysis-customer").addEventListener("keydown", (event) => {
+          let box = el("analysis-customer-suggestions");
+          if (event.key === "ArrowDown" && (box.hidden || !box.querySelector("[data-customer-suggestion]"))) {
+            renderCustomerSuggestions();
+          }
           const suggestions = [...el("analysis-customer-suggestions").querySelectorAll("[data-customer-suggestion]")];
           if (event.key === "ArrowDown" && suggestions.length) {
             event.preventDefault();
@@ -1473,7 +1477,15 @@
             setCustomerSuggestionIndex((currentIndex + 1) % suggestions.length, true, true);
           } else if (event.key === "ArrowUp") {
             event.preventDefault();
-            setCustomerSuggestionIndex(currentIndex <= 0 ? suggestions.length - 1 : currentIndex - 1, true, true);
+            if (currentIndex <= 0) {
+              state.customerSuggestionIndex = -1;
+              const input = el("analysis-customer");
+              [...el("analysis-customer-suggestions").querySelectorAll(".customer-suggestion.active")].forEach((item) => item.classList.remove("active"));
+              input.removeAttribute("aria-activedescendant");
+              input.focus();
+            } else {
+              setCustomerSuggestionIndex(currentIndex - 1, true, true);
+            }
           } else if (event.key === "Enter") {
             event.preventDefault();
             applyCustomerSuggestion(button.dataset.customerSuggestion);
@@ -2487,11 +2499,11 @@
       function renderCustomerSuggestions() {
   const input = el("analysis-customer");
   const box = el("analysis-customer-suggestions");
-  const query = input.value.trim().toLowerCase();
+  const query = normalizeCustomerSearch(input.value);
   const options = unique(state.customerOptions || []);
 
   const matches = (query
-    ? options.filter((name) => name.toLowerCase().includes(query))
+    ? options.filter((name) => normalizeCustomerSearch(name).includes(query))
     : options
   ).slice(0, 50);
 
