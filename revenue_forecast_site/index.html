@@ -1419,21 +1419,29 @@
         ["analysis-year", "analysis-business-team", "analysis-category", "analysis-manager", "analysis-center"].forEach((id) => {
           el(id).addEventListener("change", syncAnalysisAndRender);
         });
-        el("analysis-customer").addEventListener("input", () => {
-          syncAnalysisAndRender();
-          renderCustomerSuggestions();
-        });
+        el("analysis-customer").addEventListener("input", renderCustomerSuggestions);
         el("analysis-customer").addEventListener("focus", renderCustomerSuggestions);
         el("analysis-customer").addEventListener("keydown", (event) => {
           if (event.key === "Escape") el("analysis-customer-suggestions").hidden = true;
+          if (event.key === "Enter") {
+            const firstMatch = el("analysis-customer-suggestions").querySelector("[data-customer-suggestion]");
+            if (firstMatch) {
+              event.preventDefault();
+              applyCustomerSuggestion(firstMatch.dataset.customerSuggestion);
+            }
+          }
+        });
+        el("analysis-customer").addEventListener("search", () => {
+          if (!el("analysis-customer").value) {
+            state.analysis.customer = "";
+            el("analysis-customer-suggestions").hidden = true;
+            render();
+          }
         });
         el("analysis-customer-suggestions").addEventListener("click", (event) => {
           const button = event.target.closest("[data-customer-suggestion]");
           if (!button) return;
-          el("analysis-customer").value = button.dataset.customerSuggestion;
-          state.analysis.customer = button.dataset.customerSuggestion;
-          el("analysis-customer-suggestions").hidden = true;
-          render();
+          applyCustomerSuggestion(button.dataset.customerSuggestion);
         });
         document.addEventListener("click", (event) => {
           if (!event.target.closest(".customer-search")) el("analysis-customer-suggestions").hidden = true;
@@ -2458,6 +2466,13 @@
         target.hidden = false;
       }
 
+      function applyCustomerSuggestion(customer) {
+        el("analysis-customer").value = customer;
+        state.analysis.customer = customer;
+        el("analysis-customer-suggestions").hidden = true;
+        render();
+      }
+
       function renderMonthSlicer() {
         const allButton = `<button class="month-chip${state.analysis.allMonths ? " active" : ""}" type="button" data-analysis-all title="전체 월">전체</button>`;
         el("analysis-months").innerHTML = allButton + Array.from({ length: 12 }, (_, index) => String(index + 1).padStart(2, "0")).map((month) => {
@@ -2472,7 +2487,6 @@
         state.analysis.category = el("analysis-category").value;
         state.analysis.manager = el("analysis-manager").value;
         state.analysis.center = el("analysis-center").value;
-        state.analysis.customer = el("analysis-customer").value;
         render();
       }
 
