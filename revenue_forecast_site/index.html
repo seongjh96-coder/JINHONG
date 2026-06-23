@@ -1,0 +1,3241 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>유통사업부 매출 실적/예측 집계</title>
+  <script src="./customer_master.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <style>
+    :root {
+      --nav: #111d26;
+      --nav2: #1f3340;
+      --bg: #edf2f4;
+      --card: #ffffff;
+      --line: #d5dde3;
+      --text: #06131d;
+      --muted: #607080;
+      --green: #078260;
+      --blue: #1769aa;
+      --amber: #b7791f;
+      --red: #be3a34;
+      --soft: #e8f3ef;
+      --shadow: 0 18px 38px rgba(18, 31, 42, 0.08);
+    }
+
+    * { box-sizing: border-box; }
+    html, body { width: 100%; max-width: 100%; overflow-x: hidden; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Segoe UI", "Malgun Gothic", Arial, sans-serif;
+      letter-spacing: 0;
+    }
+
+    .app {
+      display: grid;
+      grid-template-columns: 242px minmax(0, 1fr);
+      min-height: 100vh;
+      min-width: 0;
+    }
+
+    aside {
+      background: var(--nav);
+      color: white;
+      padding: 10px 18px 24px;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+    }
+
+    .brand {
+      min-height: 48px;
+      margin: 0 0 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .brand img {
+      display: block;
+      width: 150px;
+      max-width: 100%;
+      height: auto;
+      padding: 0;
+      background: transparent;
+      border-radius: 0;
+      filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.25));
+    }
+
+    nav {
+      display: grid;
+      gap: 8px;
+    }
+
+    .nav-section {
+      margin: 16px 8px 4px;
+      color: #88a2b2;
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    nav button {
+      border: 0;
+      background: transparent;
+      color: #d8e7ef;
+      text-align: left;
+      padding: 13px 14px;
+      border-radius: 8px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    nav button.sub {
+      padding-left: 24px;
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    nav button.active, nav button:hover {
+      background: var(--nav2);
+      color: white;
+    }
+
+    main {
+      padding: 26px 28px 44px;
+      width: 100%;
+      min-width: 0;
+      overflow-x: hidden;
+    }
+
+    .view, .panel, .grid-2, .grid-3, .analysis-slicers { min-width: 0; max-width: 100%; }
+
+    .topbar {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 26px;
+      line-height: 1.2;
+    }
+
+    .subtitle {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      position: relative;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--line);
+      background: var(--card);
+      color: var(--text);
+      min-height: 38px;
+      padding: 0 14px;
+      border-radius: 7px;
+      font-weight: 800;
+      cursor: pointer;
+      text-decoration: none;
+    }
+
+    .helper-install {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 20px;
+      margin-bottom: 16px;
+      border-left: 4px solid var(--green);
+    }
+
+    .helper-install p {
+      margin: 7px 0 0;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    .helper-install .actions {
+      min-width: 210px;
+    }
+
+    @media (max-width: 760px) {
+      .helper-install { grid-template-columns: 1fr; }
+      .helper-install .actions { justify-content: stretch; min-width: 0; }
+      .helper-install .btn { width: 100%; }
+    }
+
+    .btn.primary {
+      background: var(--nav);
+      color: white;
+      border-color: var(--nav);
+    }
+
+    .btn.soft {
+      background: var(--soft);
+      color: var(--green);
+      border-color: #cde7dc;
+    }
+
+    .btn:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+
+    .icon-btn {
+      width: 38px;
+      min-width: 38px;
+      padding: 0;
+      font-size: 18px;
+      line-height: 1;
+    }
+
+    .settings-popover {
+      display: none;
+      position: absolute;
+      right: 0;
+      top: 46px;
+      width: 330px;
+      z-index: 20;
+      padding: 14px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+    }
+
+    .settings-popover.open {
+      display: grid;
+      gap: 10px;
+    }
+
+    .settings-title {
+      margin: 0;
+      font-size: 15px;
+      font-weight: 900;
+    }
+
+    .swatch-grid {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 8px;
+    }
+
+    .swatch {
+      height: 34px;
+      border: 2px solid transparent;
+      border-radius: 8px;
+      cursor: pointer;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.65), 0 4px 10px rgba(10,20,30,0.12);
+    }
+
+    .swatch.active {
+      border-color: var(--text);
+    }
+
+    .color-row {
+      display: grid;
+      grid-template-columns: 1fr 42px;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .color-picker {
+      width: 42px;
+      height: 38px;
+      padding: 4px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: var(--card);
+      cursor: pointer;
+    }
+
+    .panel {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+    }
+
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(150px, 1fr));
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .controls.in-panel {
+      margin-bottom: 0;
+      grid-template-columns: repeat(5, minmax(150px, 1fr));
+    }
+
+    .subhead {
+      margin: 0 0 12px;
+      font-size: 18px;
+      font-weight: 900;
+    }
+
+    .control {
+      display: grid;
+      gap: 8px;
+      padding: 12px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+    }
+
+    .control span {
+      font-size: 12px;
+      font-weight: 800;
+      color: #334858;
+    }
+
+    .input {
+      width: 100%;
+      height: 38px;
+      border: 1px solid #cfd9df;
+      border-radius: 6px;
+      padding: 0 11px;
+      background: white;
+      font: inherit;
+      font-size: 14px;
+    }
+
+    .kpis {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(160px, 1fr));
+      gap: 14px;
+      margin-bottom: 16px;
+    }
+
+    .kpi {
+      padding: 18px;
+      min-height: 116px;
+    }
+
+    .label {
+      color: #405565;
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .value {
+      margin-top: 12px;
+      font-size: 28px;
+      font-weight: 900;
+      line-height: 1;
+    }
+
+    .compact-value {
+      font-size: 19px;
+      line-height: 1.25;
+      overflow-wrap: anywhere;
+    }
+
+    .analysis-chart {
+      margin-bottom: 16px;
+    }
+
+    .analysis-slicers {
+      display: none;
+      margin-bottom: 16px;
+      padding: 16px;
+    }
+
+    .analysis-slicers.visible { display: block; }
+
+    .slicer-grid {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(130px, 1fr));
+      gap: 10px;
+    }
+
+    .month-slicer {
+      display: grid;
+      grid-template-columns: repeat(13, minmax(50px, 1fr));
+      gap: 7px;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid var(--line);
+      overflow-x: auto;
+    }
+
+    .month-chip {
+      width: 100%;
+      min-width: 50px;
+      height: 34px;
+      padding: 0 8px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: var(--card);
+      color: var(--text);
+      font-weight: 800;
+      white-space: nowrap;
+      cursor: pointer;
+    }
+
+    .table-scroll {
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+      max-height: 520px;
+      overflow-x: auto;
+      overflow-y: auto;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+    }
+
+    .table-scroll table { margin: 0; }
+    .table-scroll thead th { position: sticky; top: 0; z-index: 2; background: #f4f7f8; }
+
+    .pivot-table { width: auto; table-layout: fixed; }
+    .pivot-table th, .pivot-table td { width: 120px; min-width: 120px; max-width: 120px; white-space: nowrap; text-align: center !important; padding-left: 6px; padding-right: 6px; }
+    .pivot-table .pivot-customer {
+      position: sticky;
+      left: 0;
+      min-width: 260px;
+      width: 260px;
+      max-width: 260px;
+      text-align: center !important;
+      background: var(--card);
+      z-index: 3;
+      box-shadow: 1px 0 0 var(--line);
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .pivot-table thead .pivot-customer { background: #f4f7f8; z-index: 5; }
+    .pivot-table thead tr:first-child th { top: 0; }
+    .pivot-table thead tr:nth-child(2) th { top: 39px; }
+    .pivot-table .pivot-period { text-align: center; color: var(--green); border-left: 2px solid var(--line); }
+    .pivot-table .period-start { border-left: 2px solid var(--line); }
+    .negative-value { color: var(--red) !important; font-weight: 900; }
+
+    .data-table { table-layout: fixed; }
+    .data-table th, .data-table td { text-align: center !important; overflow-wrap: anywhere; }
+    .data-table th { white-space: nowrap; }
+    .data-table td { line-height: 1.35; }
+    .master-table { table-layout: fixed; }
+    .master-table th, .master-table td { text-align: center !important; }
+    .master-table .input { text-align: center; text-align-last: center; }
+    .master-table th:first-child, .master-table td:first-child { width: 46px; }
+    .master-table .master-category-cell { width: 100%; min-width: 0; }
+
+    .donut-layout {
+      display: grid;
+      grid-template-columns: minmax(220px, 0.75fr) minmax(280px, 1.25fr);
+      gap: 28px;
+      align-items: center;
+      min-height: 300px;
+      padding: 12px;
+    }
+
+    .donut-ring {
+      width: 220px;
+      height: 220px;
+      margin: auto;
+      border-radius: 50%;
+      position: relative;
+    }
+
+    .donut-ring::after {
+      content: "";
+      position: absolute;
+      inset: 52px;
+      border-radius: 50%;
+      background: var(--card);
+      box-shadow: 0 0 0 1px var(--line);
+    }
+
+    .donut-center {
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+      display: grid;
+      place-content: center;
+      text-align: center;
+      pointer-events: none;
+    }
+
+    .donut-center b { font-size: 22px; }
+    .donut-center span { margin-top: 5px; color: var(--muted); font-size: 12px; font-weight: 800; }
+    .donut-legend { display: grid; gap: 9px; }
+    .donut-legend-row { display: grid; grid-template-columns: 12px minmax(0, 1fr) auto auto; gap: 9px; align-items: center; font-size: 13px; }
+    .donut-color { width: 12px; height: 12px; border-radius: 3px; }
+    .donut-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 800; }
+    .donut-share { color: var(--muted); }
+
+    .chart-legend { display: flex; gap: 18px; justify-content: center; flex-wrap: wrap; margin-bottom: 12px; font-size: 12px; font-weight: 800; }
+    .legend-mark { display: inline-block; width: 12px; height: 8px; margin-right: 6px; border-radius: 2px; }
+    .grouped-chart-scroll { width: 100%; overflow-x: auto; }
+    .grouped-chart {
+      display: grid;
+      grid-auto-flow: column;
+      grid-auto-columns: minmax(92px, 1fr);
+      gap: 12px;
+      min-width: 100%;
+      height: 250px;
+      align-items: end;
+      padding: 8px 8px 0;
+    }
+    .grouped-month { display: grid; grid-template-rows: 200px 34px; gap: 8px; text-align: center; min-width: 92px; }
+    .grouped-bars { display: flex; align-items: flex-end; justify-content: center; gap: 6px; border-bottom: 1px solid var(--line); }
+    .grouped-bar { width: 20px; min-height: 3px; border-radius: 4px 4px 0 0; }
+    .grouped-label { font-size: 12px; font-weight: 800; }
+    .variance-list { display: grid; gap: 13px; min-height: 250px; align-content: center; }
+    .variance-row { display: grid; grid-template-columns: 48px 1fr 92px; gap: 10px; align-items: center; font-size: 12px; }
+    .variance-track { height: 16px; background: #e8edf0; border-radius: 4px; overflow: hidden; position: relative; }
+    .variance-fill { height: 100%; border-radius: 4px; background: var(--green); }
+    .variance-fill.negative { background: var(--red); }
+    .variance-values { display: grid; gap: 2px; text-align: right; }
+
+    .planning-controls { display: grid; grid-template-columns: repeat(5, minmax(150px, 1fr)); gap: 10px; }
+    .editable-number { width: 112px; height: 34px; padding: 0 8px; border: 1px solid var(--line); border-radius: 6px; text-align: right; font: inherit; }
+    .planning-table { min-width: 1250px; }
+    .business-plan-table { min-width: 2050px; }
+    .business-plan-table th, .business-plan-table td { min-width: 118px; }
+    .business-plan-table th:first-child, .business-plan-table td:first-child { min-width: 240px; }
+    .business-plan-table th:nth-child(2), .business-plan-table td:nth-child(2) { min-width: 210px; }
+
+    .month-chip.active {
+      color: white;
+      background: var(--green);
+      border-color: var(--green);
+    }
+
+    .column-chart {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(82px, 1fr));
+      gap: 12px;
+      min-height: 270px;
+      align-items: end;
+      padding: 18px 4px 4px;
+    }
+
+    .column-item {
+      min-width: 0;
+      display: grid;
+      grid-template-rows: 24px 180px 42px;
+      gap: 7px;
+      text-align: center;
+      align-items: end;
+    }
+
+    .column-value { font-size: 12px; font-weight: 800; }
+    .column-track { height: 180px; display: flex; align-items: flex-end; justify-content: center; border-bottom: 1px solid var(--line); }
+    .column-fill { width: min(54px, 70%); min-height: 4px; background: var(--green); border-radius: 5px 5px 0 0; }
+    .column-fill.warn { background: var(--red); }
+    .column-label { font-size: 12px; font-weight: 800; line-height: 1.3; overflow: hidden; }
+
+    .trend-chart { min-height: 280px; padding: 8px 4px 0; }
+    .trend-chart svg { width: 100%; height: 250px; overflow: visible; }
+    .trend-grid { stroke: var(--line); stroke-width: 1; }
+    .trend-line { fill: none; stroke: var(--green); stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; }
+    .trend-dot { fill: var(--card); stroke: var(--green); stroke-width: 4; }
+    .trend-label { fill: var(--muted); font-size: 11px; font-weight: 700; }
+
+    .hint {
+      margin-top: 12px;
+      color: var(--green);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1.25fr 0.95fr;
+      gap: 14px;
+      margin-bottom: 16px;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+      margin-bottom: 16px;
+    }
+
+    .section {
+      padding: 16px;
+    }
+
+    .section-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: 18px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      min-height: 28px;
+      padding: 0 10px;
+      border-radius: 999px;
+      background: #e2f5ec;
+      color: var(--green);
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .bars {
+      display: grid;
+      gap: 12px;
+    }
+
+    .bar-row {
+      display: grid;
+      grid-template-columns: 220px minmax(0, 1fr) 110px;
+      align-items: center;
+      gap: 12px;
+      font-size: 13px;
+      min-width: 0;
+    }
+
+    .bar-row b {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .track {
+      min-width: 0;
+      height: 11px;
+      background: #e8edf0;
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .fill {
+      height: 100%;
+      min-width: 3px;
+      background: var(--blue);
+      border-radius: 999px;
+    }
+
+    .fill.good { background: var(--green); }
+    .fill.warn { background: var(--amber); }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    th, td {
+      padding: 11px 10px;
+      border-bottom: 1px solid var(--line);
+      text-align: right;
+      vertical-align: middle;
+    }
+
+    th:first-child, td:first-child,
+    th:nth-child(2), td:nth-child(2) {
+      text-align: left;
+    }
+
+    th {
+      background: #f6f8f9;
+      color: #405565;
+      font-weight: 900;
+    }
+
+    .status {
+      display: inline-flex;
+      align-items: center;
+      min-height: 24px;
+      padding: 0 9px;
+      border-radius: 999px;
+      background: #e9f3ff;
+      color: var(--blue);
+      font-weight: 900;
+      font-size: 12px;
+    }
+
+    .status.red {
+      background: #fdebea;
+      color: var(--red);
+    }
+
+    .status.green {
+      background: #e2f5ec;
+      color: var(--green);
+    }
+
+    .view { display: none; }
+    .view.active { display: block; }
+
+    .empty {
+      min-height: 180px;
+      display: grid;
+      place-items: center;
+      color: var(--muted);
+      text-align: center;
+      border: 1px dashed #cbd5db;
+      border-radius: 8px;
+      background: #fbfcfd;
+      padding: 18px;
+    }
+
+    .flow {
+      display: grid;
+      gap: 12px;
+    }
+
+    .step {
+      display: grid;
+      grid-template-columns: 34px 1fr;
+      gap: 12px;
+      align-items: start;
+    }
+
+    .dot {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: var(--nav);
+      color: white;
+      display: grid;
+      place-items: center;
+      font-weight: 900;
+      font-size: 13px;
+    }
+
+    .step-title {
+      font-weight: 900;
+      margin-bottom: 4px;
+    }
+
+    .step-text {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .matrix {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+    }
+
+    .tile {
+      background: #f6f8f9;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px;
+    }
+
+    .tile b {
+      display: block;
+      font-size: 20px;
+      margin-top: 8px;
+    }
+
+    @media (max-width: 1180px) {
+      .app { grid-template-columns: 1fr; }
+      aside { position: static; height: auto; }
+      .controls, .kpis, .grid-2, .grid-3, .slicer-grid { grid-template-columns: 1fr 1fr; }
+    }
+
+    @media (max-width: 720px) {
+      main { padding: 18px; }
+      .topbar, .actions { display: grid; justify-content: stretch; }
+      .controls, .kpis, .grid-2, .grid-3, .matrix, .slicer-grid { grid-template-columns: 1fr; }
+      .bar-row { grid-template-columns: 1fr; gap: 6px; }
+      table { font-size: 12px; }
+      .month-slicer { grid-template-columns: repeat(13, 54px); }
+      .donut-layout { grid-template-columns: 1fr; }
+      .planning-controls { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside>
+      <div class="brand"><img src="./hanex_logo.png" alt=""></div>
+      <nav>
+        <button class="active" data-view="helios">HELIOS 다운로드</button>
+        <div class="nav-section">분석</div>
+        <button class="sub" data-view="performance-industry">업권별 분석</button>
+        <button class="sub" data-view="monthly-trend">월별 실적 추이</button>
+        <button class="sub" data-view="risk-analysis">목표 달성·리스크</button>
+        <button class="sub" data-view="portfolio-analysis">포트폴리오 분석</button>
+        <div class="nav-section">계획</div>
+        <button class="sub" data-view="next-month-forecast">익월 매출 예측</button>
+        <button class="sub" data-view="business-plan">연간 사업계획</button>
+        <div class="nav-section">관리</div>
+        <button class="sub" data-view="customer-master">거래처 매핑</button>
+        <button class="sub" data-view="data-quality">데이터 품질</button>
+        <button data-view="history">실적 이력</button>
+      </nav>
+    </aside>
+
+    <main>
+      <div class="topbar">
+        <div>
+          <h1 id="page-title">유통사업부 매출 실적/예측 집계</h1>
+          <p class="subtitle" id="page-subtitle">HELIOS에서 Export(Org)를 실행해 매출 실적과 예측 데이터를 집계합니다.</p>
+        </div>
+        <div class="actions">
+          <button class="btn icon-btn" id="settings-btn" type="button" title="설정" aria-label="설정">⚙</button>
+          <button class="btn" id="reset-btn" type="button">초기화</button>
+          <div class="settings-popover" id="settings-panel">
+            <h2 class="settings-title">화면 설정</h2>
+            <label class="control"><span>테마</span><select class="input" id="theme-select"><option value="light">라이트</option><option value="soft">소프트</option><option value="steel">스틸</option><option value="warm">웜</option><option value="forest">포레스트</option><option value="dark">다크</option><option value="clean">클린</option></select></label>
+            <label class="control"><span>포인트 색상</span><select class="input" id="accent-select"><option value="green">그린</option><option value="blue">블루</option><option value="teal">틸</option><option value="navy">네이비</option><option value="red">레드</option><option value="gold">골드</option></select></label>
+            <div class="control">
+              <span>색상표</span>
+              <div class="swatch-grid" id="accent-swatches">
+                <button class="swatch" type="button" data-accent="green" title="그린" style="background:#078260"></button>
+                <button class="swatch" type="button" data-accent="blue" title="블루" style="background:#1d5fd1"></button>
+                <button class="swatch" type="button" data-accent="teal" title="틸" style="background:#008c95"></button>
+                <button class="swatch" type="button" data-accent="navy" title="네이비" style="background:#174075"></button>
+                <button class="swatch" type="button" data-accent="red" title="레드" style="background:#b8323a"></button>
+                <button class="swatch" type="button" data-accent="gold" title="골드" style="background:#a66a00"></button>
+              </div>
+            </div>
+            <div class="control">
+              <span>직접 선택</span>
+              <div class="color-row"><span>메뉴 배경</span><input class="color-picker" id="nav-color-picker" type="color" value="#111d26"></div>
+              <div class="color-row"><span>포인트 색</span><input class="color-picker" id="accent-color-picker" type="color" value="#078260"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <section class="panel analysis-slicers" id="analysis-slicers">
+        <div class="section-head">
+          <div><h2>분석 슬라이서</h2><div class="subtitle">선택한 조건이 실적·예측·비교 자료에 함께 반영됩니다.</div></div>
+          <button class="btn" id="analysis-reset-btn" type="button">필터 초기화</button>
+        </div>
+        <div class="slicer-grid">
+          <label class="control"><span>연도</span><select class="input" id="analysis-year"></select></label>
+          <label class="control"><span>팀</span><select class="input" id="analysis-business-team"></select></label>
+          <label class="control"><span>사업 카테고리</span><select class="input" id="analysis-category"></select></label>
+          <label class="control"><span>담당자</span><select class="input" id="analysis-manager"></select></label>
+          <label class="control"><span>센터</span><select class="input" id="analysis-center"></select></label>
+          <label class="control"><span>고객사</span><select class="input" id="analysis-customer"></select></label>
+        </div>
+        <div class="month-slicer" id="analysis-months" aria-label="월 선택"></div>
+      </section>
+
+      <section class="view" id="dashboard">
+        <div class="kpis" id="kpi-row"></div>
+        <div class="grid-2">
+          <article class="panel section">
+            <div class="section-head"><h2>팀별 매출 흐름</h2><span class="badge" id="team-bar-label">예측 기준</span></div>
+            <div class="bars" id="team-bars"></div>
+          </article>
+          <article class="panel section">
+            <div class="section-head"><h2>목표 대비 요약</h2><span class="badge">천원 단위</span></div>
+            <table class="data-table"><colgroup><col style="width:28%"><col style="width:48%"><col style="width:24%"></colgroup><tbody id="summary-table"></tbody></table>
+          </article>
+        </div>
+        <div class="grid-2">
+          <article class="panel section">
+            <div class="section-head"><h2>팀별 TOP</h2><span class="badge" id="top-label">예측 기준</span></div>
+            <table class="data-table">
+              <colgroup><col style="width:24%"><col style="width:10%"><col span="5" style="width:13.2%"></colgroup>
+              <thead><tr><th>팀</th><th>건수</th><th>목표</th><th>예측</th><th>추정</th><th>실적</th><th>달성률</th></tr></thead>
+              <tbody id="team-table"></tbody>
+            </table>
+          </article>
+          <article class="panel section">
+            <div class="section-head"><h2>계정별 구성</h2><span class="badge">계정명 기준</span></div>
+            <table class="data-table">
+              <colgroup><col style="width:30%"><col style="width:10%"><col span="4" style="width:15%"></colgroup>
+              <thead><tr><th>계정</th><th>건수</th><th>목표</th><th>예측</th><th>추정</th><th>실적</th></tr></thead>
+              <tbody id="account-table"></tbody>
+            </table>
+          </article>
+        </div>
+      </section>
+
+      <section class="view active" id="helios">
+        <article class="panel section helper-install">
+          <div>
+            <h2>HELIOS 다운로드 도우미</h2>
+            <p>최초 1회: 설치 파일을 내려받아 압축을 푼 뒤 <b>웹연결_최초1회_설치.bat</b>를 실행하세요.<br>이후에는 아래 조건을 선택하고 다운로드 실행 버튼을 누르면 도우미 v12가 열립니다.</p>
+          </div>
+          <div class="actions">
+            <a class="btn primary" href="downloads/HELIOS_Download_Helper_v12.zip" download>도우미 v12 설치 파일</a>
+          </div>
+        </article>
+
+        <article class="panel section" style="margin-bottom:16px">
+          <h2 class="subhead">1. 다운로드</h2>
+          <section class="controls in-panel">
+            <label class="control"><span>추출 메뉴</span><select class="input" id="source-menu"><option value="sales">매출</option><option value="salesOther">매출(기타)</option></select></label>
+            <label class="control"><span>편성년도</span><select class="input" id="year-select"></select></label>
+            <label class="control"><span>월</span><select class="input" id="month-select"></select></label>
+            <label class="control"><span>부서</span><input class="input" id="dept-input" value="61,62,63"></label>
+            <label class="control"><span>다운로드 실행</span><button class="btn primary" id="helios-download-btn" type="button">실행</button></label>
+          </section>
+        </article>
+
+        <article class="panel section" style="margin-bottom:16px">
+          <h2 class="subhead">2. 파일 반영</h2>
+          <section class="controls in-panel">
+            <label class="control"><span>매출 파일 업로드</span><input class="input" id="sales-file" type="file" accept=".xlsx,.xls"></label>
+            <label class="control"><span>매출(기타) 파일 업로드</span><input class="input" id="other-file" type="file" accept=".xlsx,.xls"></label>
+            <label class="control"><span>파일 저장</span><button class="btn soft" id="save-file-btn" type="button">저장</button></label>
+            <label class="control"><span>업로드 실행</span><button class="btn primary" id="apply-file-btn" type="button">실행</button></label>
+            <label class="control"><span>상태</span><button class="btn primary" id="download-status" type="button">상태 확인</button></label>
+          </section>
+          <div style="display:none">
+            <select id="team-filter"></select>
+            <select id="account-filter"></select>
+            <select id="customer-filter"></select>
+            <select id="metric-filter"><option value="forecast">예측</option><option value="guess">추정</option><option value="result">실적</option><option value="goal">목표</option><option value="gap">목표 차이</option></select>
+            <select id="period-filter"><option value="current">당월</option><option value="before">전월</option></select>
+            <input id="master-status" value="로딩 중" readonly>
+          </div>
+        </article>
+
+        <div class="grid-2">
+          <article class="panel section">
+            <div class="section-head"><h2>HELIOS 자동화 준비</h2><span class="badge">1차 틀</span></div>
+            <div class="flow">
+              <div class="step"><div class="dot">1</div><div><div class="step-title">HELIOS 화면 열기</div><div class="step-text" id="helios-path-text">경영정보 2.0 > 손익관리 > 유통부문 > 매출 화면을 열어둡니다.</div></div></div>
+              <div class="step"><div class="dot">2</div><div><div class="step-title">조회 조건 입력</div><div class="step-text" id="helios-condition-text">편성년도, 시작월, 종료월, 부서 값을 기준으로 조회 조건을 맞춥니다.</div></div></div>
+              <div class="step"><div class="dot">3</div><div><div class="step-title">Export(Org)</div><div class="step-text">다음 단계에서 PC 자동화 프로그램이 조회, 우클릭, Export(Org)를 수행하도록 연결합니다.</div></div></div>
+              <div class="step"><div class="dot">4</div><div><div class="step-title">자동 반영</div><div class="step-text">다운로드된 Export 파일을 감지해 이 페이지의 집계와 분석 결과를 갱신합니다.</div></div></div>
+            </div>
+          </article>
+          <article class="panel section">
+            <div class="section-head"><h2>자동 입력 예정값</h2><span class="badge">HELIOS 조건</span></div>
+            <div class="matrix">
+              <div class="tile"><span>추출 메뉴</span><b id="auto-menu">매출</b></div>
+              <div class="tile"><span>편성년도</span><b id="auto-year">-</b></div>
+              <div class="tile"><span>시작월</span><b id="auto-month-start">-</b></div>
+              <div class="tile"><span>종료월</span><b id="auto-month-end">-</b></div>
+              <div class="tile"><span>부서</span><b id="auto-dept">61,62,63</b></div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="view" id="performance-industry">
+        <div class="grid-3">
+          <article class="panel section"><div class="label">총 실적</div><div class="value" id="pi-total">0</div><div class="hint">고객사 전체 실적</div></article>
+          <article class="panel section"><div class="label">최대 실적 고객사</div><div class="value compact-value" id="pi-top">-</div><div class="hint" id="pi-top-value">0</div></article>
+          <article class="panel section"><div class="label">목표 미달 고객사</div><div class="value" id="pi-risk">0</div><div class="hint">예상 매출 기준</div></article>
+        </div>
+        <article class="panel section analysis-chart">
+          <div class="section-head"><h2>고객사별 실적 TOP 10</h2><span class="badge">실적 순위</span></div>
+          <div class="bars" id="pi-bars"></div>
+        </article>
+        <article class="panel section" style="margin-top:16px">
+          <div class="section-head">
+            <h2>고객사 월별 목표·예측·실적 비교</h2>
+            <div class="actions"><span class="badge">목표비=A-C · 예측비=B-C</span><button class="btn soft" id="customer-month-download" type="button">엑셀 다운로드</button></div>
+          </div>
+          <div class="table-scroll">
+            <table class="pivot-table" id="customer-month-pivot">
+              <colgroup id="customer-month-cols"></colgroup>
+              <thead id="customer-month-head"></thead>
+              <tbody id="customer-month-table"></tbody>
+            </table>
+          </div>
+        </article>
+      </section>
+
+      <section class="view" id="performance-center">
+        <div class="grid-3">
+          <article class="panel section"><div class="label">총 실적</div><div class="value" id="pc-total">0</div><div class="hint">센터 전체 실적</div></article>
+          <article class="panel section"><div class="label">최대 실적 센터</div><div class="value compact-value" id="pc-top">-</div><div class="hint" id="pc-top-value">0</div></article>
+          <article class="panel section"><div class="label">전월 대비 증감</div><div class="value" id="pc-mom">0</div><div class="hint">현재 실적 - 전월 실적</div></article>
+        </div>
+        <div class="grid-2">
+          <article class="panel section analysis-chart">
+            <div class="section-head"><h2>센터별 실적 비교</h2><span class="badge">실적 TOP</span></div>
+            <div class="column-chart" id="pc-bars"></div>
+          </article>
+          <article class="panel section analysis-chart">
+            <div class="section-head"><h2>월별 실적 추이</h2><span class="badge">선택 조건 기준</span></div>
+            <div class="trend-chart" id="pc-monthly-trend"></div>
+          </article>
+        </div>
+        <article class="panel section analysis-chart">
+          <div class="section-head"><h2>선택 센터의 고객사 실적</h2><span class="badge">고객사 TOP 10</span></div>
+          <div class="bars" id="pc-customer-bars"></div>
+        </article>
+        <article class="panel section">
+          <div class="section-head"><h2>센터별 실적 분석</h2><span class="badge">센터명 정제 기준</span></div>
+          <table class="data-table">
+            <colgroup><col style="width:24%"><col span="8" style="width:9.5%"></colgroup>
+            <thead><tr><th>센터</th><th>계정 수</th><th>거래처 수</th><th>목표</th><th>예측</th><th>추정</th><th>실적</th><th>전월 실적</th><th>목표 차이</th></tr></thead>
+            <tbody id="team-detail-table"></tbody>
+          </table>
+        </article>
+      </section>
+
+      <section class="view" id="performance-extra">
+        <div class="grid-3">
+          <article class="panel section"><div class="label">계정 수</div><div class="value" id="pe-count">0</div><div class="hint">실적 발생 계정</div></article>
+          <article class="panel section"><div class="label">최대 실적 계정</div><div class="value compact-value" id="pe-top">-</div><div class="hint" id="pe-top-value">0</div></article>
+          <article class="panel section"><div class="label">상위 5개 집중도</div><div class="value" id="pe-share">0%</div><div class="hint">상위 계정 실적 ÷ 전체</div></article>
+        </div>
+        <article class="panel section analysis-chart">
+          <div class="section-head"><h2>계정별 실적 구성</h2><span class="badge">실적 TOP 10</span></div>
+          <div class="bars" id="pe-bars"></div>
+        </article>
+        <article class="panel section">
+          <div class="section-head"><h2>기타 실적 분석</h2><span class="badge">계정 기준</span></div>
+          <table class="data-table">
+            <colgroup><col style="width:24%"><col style="width:12%"><col style="width:10%"><col span="5" style="width:10.8%"></colgroup>
+            <thead><tr><th>계정</th><th>코드</th><th>건수</th><th>목표</th><th>예측</th><th>추정</th><th>실적</th><th>목표 차이</th></tr></thead>
+            <tbody id="account-detail-table"></tbody>
+          </table>
+        </article>
+      </section>
+
+      <section class="view" id="forecast-industry">
+        <div class="grid-3">
+          <article class="panel section"><div class="label">예상 매출</div><div class="value" id="fi-total">0</div><div class="hint">예측 + 추정 + 실적</div></article>
+          <article class="panel section"><div class="label">목표 부족액</div><div class="value" id="fi-shortfall">0</div><div class="hint">미달 업권 부족액 합계</div></article>
+          <article class="panel section"><div class="label">목표 달성 업권</div><div class="value" id="fi-achieved">0</div><div class="hint">예상 매출 ≥ 목표</div></article>
+        </div>
+        <article class="panel section analysis-chart">
+          <div class="section-head"><h2>고객사별 예상 매출</h2><span class="badge">CUST_NM TOP</span></div>
+          <div class="column-chart" id="fi-bars"></div>
+        </article>
+        <article class="panel section">
+          <div class="section-head"><h2>고객사별 예측</h2><span class="badge">CUST_NM 기준</span></div>
+          <table class="data-table">
+            <colgroup><col style="width:25%"><col style="width:7%"><col span="6" style="width:10%"><col style="width:8%"></colgroup>
+            <thead><tr><th>고객사</th><th>건수</th><th>목표</th><th>예측</th><th>추정</th><th>실적</th><th>예상 매출</th><th>목표 차이</th><th>상태</th></tr></thead>
+            <tbody id="forecast-industry-table"></tbody>
+          </table>
+        </article>
+      </section>
+
+      <section class="view" id="forecast-center">
+        <div class="grid-3">
+          <article class="panel section"><div class="label">예측 + 추정</div><div class="value" id="forecast-total">0</div><div class="hint">실적 확정 전 예상 매출</div></article>
+          <article class="panel section"><div class="label">목표 대비 차이</div><div class="value" id="goal-gap">0</div><div class="hint">예상 매출 - 목표</div></article>
+          <article class="panel section"><div class="label">전월 실적 대비</div><div class="value" id="mom-gap">0</div><div class="hint">예상 매출 - 전월 실적</div></article>
+        </div>
+        <article class="panel section analysis-chart">
+          <div class="section-head"><h2>센터별 예상 매출</h2><span class="badge">목표 차이 포함</span></div>
+          <div class="column-chart" id="fc-bars"></div>
+        </article>
+        <article class="panel section">
+          <div class="section-head"><h2>예측 점검 리스트</h2><span class="badge">차이 큰 순</span></div>
+          <table class="data-table">
+            <colgroup><col style="width:14%"><col style="width:16%"><col style="width:22%"><col span="5" style="width:8%"><col style="width:8%"></colgroup>
+            <thead><tr><th>센터</th><th>계정</th><th>거래처</th><th>목표</th><th>예측</th><th>추정</th><th>실적</th><th>차이</th><th>상태</th></tr></thead>
+            <tbody id="forecast-table"></tbody>
+          </table>
+        </article>
+      </section>
+
+      <section class="view" id="forecast-extra">
+        <div class="grid-3">
+          <article class="panel section"><div class="label">예상 매출</div><div class="value" id="fe-total">0</div><div class="hint">계정 전체 예상 매출</div></article>
+          <article class="panel section"><div class="label">최대 예상 계정</div><div class="value compact-value" id="fe-top">-</div><div class="hint" id="fe-top-value">0</div></article>
+          <article class="panel section"><div class="label">목표 미달 계정</div><div class="value" id="fe-risk">0</div><div class="hint">예상 매출 기준</div></article>
+        </div>
+        <article class="panel section analysis-chart">
+          <div class="section-head"><h2>계정별 예상 매출</h2><span class="badge">예상 매출 TOP 10</span></div>
+          <div class="bars" id="fe-bars"></div>
+        </article>
+        <article class="panel section">
+          <div class="section-head"><h2>기타 예측</h2><span class="badge">계정별 점검</span></div>
+          <table class="data-table">
+            <colgroup><col style="width:25%"><col style="width:8%"><col span="6" style="width:11.16%"></colgroup>
+            <thead><tr><th>계정</th><th>건수</th><th>목표</th><th>예측</th><th>추정</th><th>실적</th><th>예상 매출</th><th>목표 차이</th></tr></thead>
+            <tbody id="forecast-account-table"></tbody>
+          </table>
+        </article>
+      </section>
+
+      <section class="view" id="compare">
+        <div class="grid-3">
+          <article class="panel section"><div class="label">목표 대비</div><div class="value" id="compare-goal-gap">0</div><div class="hint">예상 매출 - 목표</div></article>
+          <article class="panel section"><div class="label">전월 대비</div><div class="value" id="compare-before-gap">0</div><div class="hint">예상 매출 - 전월 실적</div></article>
+          <article class="panel section"><div class="label">달성률</div><div class="value" id="compare-rate">0%</div><div class="hint">예상 매출 ÷ 목표</div></article>
+        </div>
+        <article class="panel section analysis-chart">
+          <div class="section-head"><h2>센터별 목표 대비 차이</h2><span class="badge">부족/초과 비교</span></div>
+          <div class="bars" id="compare-bars"></div>
+        </article>
+        <article class="panel section">
+          <div class="section-head"><h2>비교 분석</h2><span class="badge">센터별 차이</span></div>
+          <table class="data-table">
+            <colgroup><col style="width:20%"><col span="7" style="width:11.42%"></colgroup>
+            <thead><tr><th>센터</th><th>목표</th><th>예상 매출</th><th>실적</th><th>전월 실적</th><th>목표 대비</th><th>전월 대비</th><th>상태</th></tr></thead>
+            <tbody id="compare-table"></tbody>
+          </table>
+        </article>
+      </section>
+
+      <section class="view" id="monthly-trend">
+        <div class="grid-3">
+          <article class="panel section"><div class="label">누적 목표</div><div class="value" id="mt-goal">0</div><div class="hint">선택 기간 합계</div></article>
+          <article class="panel section"><div class="label">누적 실적</div><div class="value" id="mt-result">0</div><div class="hint">선택 기간 합계</div></article>
+          <article class="panel section"><div class="label">목표 달성률</div><div class="value" id="mt-rate">0%</div><div class="hint">실적 ÷ 목표</div></article>
+        </div>
+        <div class="grid-2">
+          <article class="panel section analysis-chart">
+            <div class="section-head"><h2>월별 목표·예측·실적 비교</h2><span class="badge">금액 비교</span></div>
+            <div id="monthly-comparison-chart"></div>
+          </article>
+          <article class="panel section analysis-chart">
+            <div class="section-head"><h2>목표·전월 대비 증감</h2><span class="badge">차이 분석</span></div>
+            <div id="monthly-variance-chart"></div>
+          </article>
+        </div>
+        <article class="panel section">
+          <div class="section-head"><h2>월별 실적 요약</h2><span class="badge">천원 단위</span></div>
+          <table class="data-table"><colgroup><col style="width:10%"><col style="width:10%"><col span="6" style="width:13.33%"></colgroup>
+            <thead><tr><th>연도</th><th>월</th><th>목표</th><th>예측</th><th>실적</th><th>목표 차이</th><th>전월 대비</th><th>달성률</th></tr></thead>
+            <tbody id="monthly-summary-table"></tbody>
+          </table>
+        </article>
+      </section>
+
+      <section class="view" id="risk-analysis">
+        <div class="grid-3">
+          <article class="panel section"><div class="label">목표 미달 고객사</div><div class="value" id="risk-customer-count">0</div><div class="hint">실적 기준</div></article>
+          <article class="panel section"><div class="label">총 부족액</div><div class="value" id="risk-shortfall">0</div><div class="hint">목표 - 실적</div></article>
+          <article class="panel section"><div class="label">목표 달성 고객사</div><div class="value" id="risk-achieved-count">0</div><div class="hint">실적 ≥ 목표</div></article>
+        </div>
+        <article class="panel section analysis-chart">
+          <div class="section-head"><h2>목표 부족액 TOP 10</h2><span class="badge">조치 우선순위</span></div>
+          <div class="bars" id="risk-bars"></div>
+        </article>
+        <article class="panel section">
+          <div class="section-head"><h2>고객사 목표 달성 점검</h2><span class="badge">부족액 큰 순</span></div>
+          <table class="data-table"><colgroup><col style="width:28%"><col span="5" style="width:12%"><col style="width:12%"></colgroup>
+            <thead><tr><th>고객사</th><th>카테고리</th><th>담당자</th><th>목표</th><th>실적</th><th>부족/초과</th><th>달성률</th></tr></thead>
+            <tbody id="risk-table"></tbody>
+          </table>
+        </article>
+      </section>
+
+      <section class="view" id="portfolio-analysis">
+        <div class="grid-3">
+          <article class="panel section"><div class="label">활성 고객사</div><div class="value" id="portfolio-customers">0</div><div class="hint">선택 기간 실적 발생</div></article>
+          <article class="panel section"><div class="label">상위 10개 집중도</div><div class="value" id="portfolio-top-share">0%</div><div class="hint">상위 고객사 실적 비중</div></article>
+          <article class="panel section"><div class="label">활성 카테고리</div><div class="value" id="portfolio-categories">0</div><div class="hint">사업 카테고리 수</div></article>
+        </div>
+        <div class="grid-2">
+          <article class="panel section analysis-chart"><div class="section-head"><h2>카테고리별 실적 비중</h2><span class="badge">포트폴리오 구성</span></div><div id="portfolio-category-chart"></div></article>
+          <article class="panel section analysis-chart"><div class="section-head"><h2>담당자별 실적</h2><span class="badge">TOP 10</span></div><div class="bars" id="portfolio-manager-bars"></div></article>
+        </div>
+        <article class="panel section">
+          <div class="section-head"><h2>카테고리별 성과</h2><span class="badge">매출 포트폴리오</span></div>
+          <table class="data-table"><colgroup><col style="width:24%"><col span="5" style="width:15.2%"></colgroup>
+            <thead><tr><th>사업 카테고리</th><th>고객사 수</th><th>목표</th><th>예측</th><th>실적</th><th>실적 비중</th></tr></thead>
+            <tbody id="portfolio-category-table"></tbody>
+          </table>
+        </article>
+      </section>
+
+      <section class="view" id="next-month-forecast">
+        <article class="panel section" style="margin-bottom:16px">
+          <div class="section-head"><h2>익월 예측 조건</h2><span class="badge">초안 기능</span></div>
+          <div class="planning-controls">
+            <label class="control"><span>기준월</span><input class="input" id="forecast-source-period" value="월을 선택해주세요" readonly></label>
+            <label class="control"><span>예측 대상월</span><input class="input" id="forecast-target-period" value="-" readonly></label>
+            <label class="control"><span>추천 방식</span><select class="input" id="forecast-method"><option value="average3">최근 3개월 평균</option><option value="latest">기준월 실적</option><option value="trend">최근 증감 추세</option></select></label>
+            <label class="control"><span>일괄 조정률(%)</span><input class="input" id="forecast-adjustment" type="number" value="0" step="0.1"></label>
+            <label class="control"><span>예측 초안</span><button class="btn primary" id="forecast-generate" type="button">초안 생성</button></label>
+          </div>
+          <div class="actions" style="margin-top:12px">
+            <button class="btn soft" id="forecast-save" type="button">예측안 저장</button>
+            <button class="btn" id="forecast-download" type="button">엑셀 다운로드</button>
+            <button class="btn primary" id="forecast-helios" type="button">HELIOS 입력 준비</button>
+          </div>
+        </article>
+        <div class="grid-3">
+          <article class="panel section"><div class="label">기준월 실적</div><div class="value" id="nf-source-total">0</div><div class="hint">선택 업권 합계</div></article>
+          <article class="panel section"><div class="label">추천 예측</div><div class="value" id="nf-suggested-total">0</div><div class="hint">선택 방식 적용</div></article>
+          <article class="panel section"><div class="label">최종 예측</div><div class="value" id="nf-final-total">0</div><div class="hint">수동 보정 포함</div></article>
+        </div>
+        <article class="panel section">
+          <div class="section-head"><h2>고객사·센터·계정별 익월 예측 입력</h2><span class="badge">천원 단위</span></div>
+          <div class="table-scroll">
+            <table class="data-table planning-table"><colgroup><col style="width:23%"><col style="width:12%"><col style="width:16%"><col style="width:19%"><col span="4" style="width:7.5%"></colgroup>
+              <thead><tr><th>고객사</th><th>카테고리</th><th>센터</th><th>계정</th><th>기준월 실적</th><th>3개월 평균</th><th>추천 예측</th><th>최종 예측</th></tr></thead>
+              <tbody id="next-forecast-table"></tbody>
+            </table>
+          </div>
+        </article>
+      </section>
+
+      <section class="view" id="business-plan">
+        <article class="panel section" style="margin-bottom:16px">
+          <div class="section-head"><h2>연간 사업계획 조건</h2><span class="badge">내년도 목표 초안</span></div>
+          <div class="planning-controls">
+            <label class="control"><span>기준연도</span><select class="input" id="plan-source-year"></select></label>
+            <label class="control"><span>계획연도</span><input class="input" id="plan-target-year" readonly></label>
+            <label class="control"><span>기본 성장률(%)</span><input class="input" id="plan-growth" type="number" value="5" step="0.1"></label>
+            <label class="control"><span>계획 초안</span><button class="btn primary" id="plan-generate" type="button">초안 생성</button></label>
+            <label class="control"><span>저장/다운로드</span><div class="actions"><button class="btn soft" id="plan-save" type="button">저장</button><button class="btn" id="plan-download" type="button">엑셀</button></div></label>
+          </div>
+        </article>
+        <div class="grid-3">
+          <article class="panel section"><div class="label">기준연도 실적</div><div class="value" id="bp-source-total">0</div><div class="hint">연간 합계</div></article>
+          <article class="panel section"><div class="label">계획연도 목표</div><div class="value" id="bp-plan-total">0</div><div class="hint">월별 목표 합계</div></article>
+          <article class="panel section"><div class="label">계획 성장률</div><div class="value" id="bp-growth-rate">0%</div><div class="hint">계획 ÷ 기준실적</div></article>
+        </div>
+        <article class="panel section analysis-chart">
+          <div class="section-head"><h2>월별 기준실적·계획목표 비교</h2><span class="badge">12개월</span></div>
+          <div id="business-plan-chart"></div>
+        </article>
+        <article class="panel section">
+          <div class="section-head"><h2>고객사·계정별 월간 목표 입력</h2><span class="badge">천원 단위</span></div>
+          <div class="table-scroll">
+            <table class="data-table business-plan-table">
+              <thead><tr><th>고객사</th><th>계정</th><th>1월</th><th>2월</th><th>3월</th><th>4월</th><th>5월</th><th>6월</th><th>7월</th><th>8월</th><th>9월</th><th>10월</th><th>11월</th><th>12월</th><th>연간 합계</th></tr></thead>
+              <tbody id="business-plan-table"></tbody>
+            </table>
+          </div>
+        </article>
+      </section>
+
+      <section class="view" id="data-quality">
+        <div class="grid-3">
+          <article class="panel section"><div class="label">마스터 거래처</div><div class="value" id="quality-total">0</div><div class="hint">현재 등록 건수</div></article>
+          <article class="panel section"><div class="label">담당자 점검</div><div class="value" id="quality-owner">0</div><div class="hint">미지정 또는 팀명 입력</div></article>
+          <article class="panel section"><div class="label">카테고리 검토</div><div class="value" id="quality-category">0</div><div class="hint">물류·기타 자동 분류</div></article>
+        </div>
+        <article class="panel section">
+          <div class="section-head"><h2>거래처 마스터 점검 목록</h2><button class="btn primary" id="quality-go-master" type="button">거래처 매핑 열기</button></div>
+          <table class="data-table"><colgroup><col style="width:34%"><col style="width:20%"><col style="width:14%"><col style="width:14%"><col style="width:18%"></colgroup>
+            <thead><tr><th>거래처명</th><th>사업 카테고리</th><th>담당자</th><th>팀</th><th>점검 사유</th></tr></thead>
+            <tbody id="quality-table"></tbody>
+          </table>
+        </article>
+      </section>
+
+      <section class="view" id="history">
+        <article class="panel section">
+          <div class="section-head"><h2>실적/예측 저장 이력</h2><button class="btn" id="clear-history-btn" type="button">이력 초기화</button></div>
+          <table class="data-table">
+            <colgroup><col style="width:8%"><col style="width:6%"><col style="width:28%"><col span="4" style="width:11%"><col style="width:14%"></colgroup>
+            <thead><tr><th>연도</th><th>월</th><th>내역명</th><th>목표</th><th>예측</th><th>실적</th><th>목표 차이</th><th>다운로드</th></tr></thead>
+            <tbody id="history-table"></tbody>
+          </table>
+        </article>
+      </section>
+
+      <section class="view" id="customer-master">
+        <article class="panel section" style="margin-bottom:16px">
+          <div class="section-head"><h2>거래처 조회</h2><span class="badge" id="customer-master-count">0건</span></div>
+          <section class="controls in-panel">
+            <label class="control"><span>거래처명</span><input class="input" id="master-query-customer" placeholder="거래처명 입력"></label>
+            <label class="control"><span>담당자명</span><input class="input" id="master-query-owner" placeholder="담당자명 입력"></label>
+            <label class="control"><span>사업 카테고리</span><select class="input" id="master-query-category"></select></label>
+            <label class="control"><span>팀명</span><select class="input" id="master-query-team"><option value="">전체</option><option>TPL1팀</option><option>TPL2팀</option><option>TPL3팀</option><option>운송팀</option></select></label>
+            <label class="control"><span>조회</span><button class="btn primary" id="master-query-btn" type="button">조회</button></label>
+          </section>
+        </article>
+        <article class="panel section">
+          <div class="section-head">
+            <h2>거래처 정보</h2>
+            <div class="actions">
+              <button class="btn" id="master-add-btn" type="button">추가</button>
+              <button class="btn" id="master-edit-btn" type="button">수정</button>
+              <button class="btn" id="master-delete-btn" type="button">삭제</button>
+              <button class="btn primary" id="master-save-btn" type="button">저장</button>
+            </div>
+          </div>
+          <table class="master-table">
+            <colgroup><col style="width:3%"><col style="width:17%"><col style="width:52%"><col style="width:15%"><col style="width:13%"></colgroup>
+            <thead><tr><th><input type="checkbox" id="master-check-all"></th><th>사업 카테고리</th><th>거래처명</th><th>담당자명</th><th>팀명</th></tr></thead>
+            <tbody id="customer-master-table"></tbody>
+          </table>
+        </article>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    (function () {
+      const SAVED_UPLOAD_KEY = "hanexRevenueSavedUploadRows_v1";
+      const HISTORY_DB_NAME = "hanexRevenueFiles";
+      const HISTORY_STORE_NAME = "historyFiles";
+      const DATASET_STORE_NAME = "revenueDatasets";
+      const BUSINESS_CATEGORIES = [
+        "뷰티·퍼스널케어", "식품·건강식품", "주류·음료", "생활화학·홈케어", "리빙·소비재",
+        "완구·엔터테인먼트", "바이오·의료·과학", "자동차·산업재", "유통·커머스", "물류·기타"
+      ];
+      const state = {
+        rows: [], salesFile: null, otherFile: null, team: "", account: "", customer: "",
+        metric: "forecast", period: "current", masterDrafts: [], lastStatus: "대기 중",
+        analysis: { year: "", months: [], allMonths: false, businessTeam: "", category: "", manager: "", center: "", customer: "" },
+        forecastDraft: [], forecastMeta: null, businessPlanDraft: [], businessPlanMeta: null
+      };
+      const labels = {
+        dashboard: ["유통사업부 매출 실적/예측 집계", "HELIOS에서 Export(Org)를 실행해 목표, 예측, 추정, 실적을 집계합니다."],
+        helios: ["HELIOS 다운로드", "매출/매출(기타) 메뉴별 조회 조건을 기준으로 HELIOS 자동 조회와 Export 연결을 준비합니다."],
+        "performance-industry": ["업권별 실적 분석", "고객사(CUST_NM) 기준으로 목표, 예측, 추정, 실적을 비교합니다."],
+        "performance-center": ["센터별 실적 분석", "센터별 실적과 월별 흐름, 고객사 구성을 함께 확인합니다."],
+        "performance-extra": ["기타 실적 분석", "계정과 거래처 관점의 추가 실적 분석을 확인합니다."],
+        "forecast-industry": ["업권별 예측", "고객사(CUST_NM)별 예상 매출과 목표 대비 차이를 확인합니다."],
+        "forecast-center": ["센터별 예측", "센터별 예측, 추정, 실적 확정 전 위험 구간을 확인합니다."],
+        "forecast-extra": ["기타 예측", "계정 기준으로 예측 점검이 필요한 항목을 확인합니다."],
+        compare: ["비교 분석", "목표 대비와 전월 대비 차이를 함께 비교합니다."],
+        "monthly-trend": ["월별 실적 추이", "월별 목표·예측·실적 흐름과 달성률 변화를 확인합니다."],
+        "risk-analysis": ["목표 달성·리스크", "목표 부족액이 큰 고객사와 조치 우선순위를 확인합니다."],
+        "portfolio-analysis": ["포트폴리오 분석", "카테고리와 담당자별 실적 구성 및 고객사 집중도를 확인합니다."],
+        "data-quality": ["데이터 품질", "거래처 마스터의 담당자·팀·카테고리 정제 필요 항목을 점검합니다."],
+        "next-month-forecast": ["익월 매출 예측", "선택한 기준월 실적을 바탕으로 다음 달 고객사·센터·계정별 예측안을 작성합니다."],
+        "business-plan": ["연간 사업계획", "기준연도 실적을 바탕으로 내년도 고객사·계정별 월간 목표를 수립합니다."],
+        history: ["실적 이력", "월별 산출 결과를 저장하고 누적 비교합니다."],
+        "customer-master": ["거래처 매핑", "사업 카테고리, 거래처명, 담당자명, 팀명 기준으로 거래처 정보를 조회하고 관리합니다."]
+      };
+
+      const el = (id) => document.getElementById(id);
+      const fmt = (n) => Math.round(Number(n || 0)).toLocaleString("ko-KR");
+      const pct = (n) => Number.isFinite(n) ? `${Math.round(n * 10) / 10}%` : "0%";
+      const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[m]));
+      const opt = (value, label) => `<option value="${esc(value)}">${esc(label || value)}</option>`;
+      const unique = (arr) => [...new Set(arr.filter(Boolean))];
+      const number = (v) => {
+        const n = Number(String(v ?? "").replace(/,/g, "").trim());
+        return Number.isFinite(n) ? n : 0;
+      };
+
+      async function init() {
+        applySavedTheme();
+        setupBaseSelects();
+        bindNav();
+        bindActions();
+        let savedRows = [];
+        try { savedRows = await loadCumulativeDataset(); }
+        catch (error) { console.error(error); }
+        try { state.rows = await rebuildCumulativeFromHistory(savedRows); }
+        catch (error) {
+          console.error(error);
+          state.rows = enrichRows(savedRows);
+        }
+        loadPlanningDrafts();
+        refreshFilters();
+        refreshAnalysisSlicers();
+        refreshPlanningYears();
+        updateMasterStatus();
+        render();
+        showView("helios");
+      }
+
+      function setupBaseSelects() {
+        const now = new Date();
+        const years = [];
+        for (let y = now.getFullYear() - 1; y <= now.getFullYear() + 1; y++) years.push(y);
+        el("year-select").innerHTML = years.map((y) => opt(y, y)).join("");
+        el("year-select").value = now.getFullYear();
+        el("month-select").innerHTML = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, "0")).map((m) => opt(m, m)).join("");
+        el("month-select").value = String(now.getMonth() + 1).padStart(2, "0");
+        fillSelect("master-query-category", [["", "전체"], ...BUSINESS_CATEGORIES.map((category) => [category, category])]);
+        syncAutoLabels();
+      }
+
+      function bindNav() {
+        document.querySelectorAll("nav button").forEach((button) => {
+          button.addEventListener("click", () => showView(button.dataset.view));
+        });
+      }
+
+      function bindActions() {
+        ["source-menu", "year-select", "month-select", "dept-input"].forEach((id) => el(id).addEventListener("change", syncAutoLabels));
+        ["team-filter", "account-filter", "customer-filter", "metric-filter", "period-filter"].forEach((id) => el(id).addEventListener("change", syncStateAndRender));
+        ["analysis-year", "analysis-business-team", "analysis-category", "analysis-manager", "analysis-center", "analysis-customer"].forEach((id) => {
+          el(id).addEventListener("change", syncAnalysisAndRender);
+        });
+        el("analysis-months").addEventListener("click", async (event) => {
+          if (event.target.closest("[data-analysis-all]")) {
+            state.analysis.months = [];
+            state.analysis.allMonths = true;
+            await ensureAllHistoryLoaded();
+            renderMonthSlicer();
+            render();
+            return;
+          }
+          const button = event.target.closest("[data-analysis-month]");
+          if (!button) return;
+          const month = button.dataset.analysisMonth;
+          state.analysis.allMonths = false;
+          state.analysis.months = state.analysis.months.includes(month)
+            ? state.analysis.months.filter((value) => value !== month)
+            : [...state.analysis.months, month].sort();
+          if (state.analysis.months.includes(month)) await ensureHistoryMonthLoaded(month);
+          renderMonthSlicer();
+          render();
+        });
+        el("analysis-reset-btn").addEventListener("click", resetAnalysisFilters);
+        el("customer-month-download").addEventListener("click", downloadCustomerMonthlyExcel);
+        el("sales-file").addEventListener("change", (event) => handleUploadSelection("salesFile", event));
+        el("other-file").addEventListener("change", (event) => handleUploadSelection("otherFile", event));
+        el("save-file-btn").addEventListener("click", saveSelectedWorkbookFiles);
+        el("apply-file-btn").addEventListener("click", () => {
+          if (!state.salesFile && !state.otherFile && !savedUploadRows().rows.length) {
+            alert("먼저 매출 파일 또는 매출(기타) 파일을 선택하거나 저장된 파일 데이터를 확인해주세요.");
+            return;
+          }
+          applyWorkbookFiles();
+        });
+        el("download-status").addEventListener("click", showUploadStatus);
+        el("helios-download-btn").addEventListener("click", runHeliosDownload);
+        el("reset-btn").addEventListener("click", resetAll);
+        el("clear-history-btn").addEventListener("click", clearHistory);
+        el("history-table").addEventListener("click", (event) => {
+          const button = event.target.closest("[data-history-download]");
+          if (button) downloadHistoryFiles(button.dataset.historyDownload);
+        });
+        el("master-query-btn").addEventListener("click", renderCustomerMaster);
+        ["master-query-customer", "master-query-owner"].forEach((id) => el(id).addEventListener("input", renderCustomerMaster));
+        el("master-query-team").addEventListener("change", renderCustomerMaster);
+        el("master-query-category").addEventListener("change", renderCustomerMaster);
+        el("master-add-btn").addEventListener("click", addCustomerMasterRow);
+        el("master-edit-btn").addEventListener("click", focusSelectedCustomerMaster);
+        el("master-delete-btn").addEventListener("click", deleteSelectedCustomerMaster);
+        el("master-save-btn").addEventListener("click", saveCheckedCustomerMasterRows);
+        el("quality-go-master").addEventListener("click", () => showView("customer-master"));
+        el("forecast-generate").addEventListener("click", generateForecastDraft);
+        el("forecast-save").addEventListener("click", saveForecastDraft);
+        el("forecast-download").addEventListener("click", downloadForecastDraft);
+        el("forecast-helios").addEventListener("click", prepareForecastForHelios);
+        el("next-forecast-table").addEventListener("input", updateForecastDraftValue);
+        ["forecast-method", "forecast-adjustment"].forEach((id) => el(id).addEventListener("change", generateForecastDraft));
+        el("plan-source-year").addEventListener("change", syncPlanTargetYear);
+        el("plan-generate").addEventListener("click", generateBusinessPlanDraft);
+        el("plan-save").addEventListener("click", saveBusinessPlanDraft);
+        el("plan-download").addEventListener("click", downloadBusinessPlanDraft);
+        el("business-plan-table").addEventListener("change", updateBusinessPlanValue);
+        el("master-check-all").addEventListener("change", () => {
+          document.querySelectorAll(".master-row-check").forEach((checkbox) => { checkbox.checked = el("master-check-all").checked; });
+        });
+        el("settings-btn").addEventListener("click", () => el("settings-panel").classList.toggle("open"));
+        el("theme-select").addEventListener("change", () => {
+          el("nav-color-picker").value = themeNavColor(el("theme-select").value);
+          saveThemeSettings();
+        });
+        el("accent-select").addEventListener("change", () => {
+          el("accent-color-picker").value = accentColor(el("accent-select").value);
+          saveThemeSettings();
+        });
+        el("nav-color-picker").addEventListener("input", saveThemeSettings);
+        el("accent-color-picker").addEventListener("input", saveThemeSettings);
+        document.querySelectorAll(".swatch").forEach((button) => {
+          button.addEventListener("click", () => {
+            el("accent-select").value = button.dataset.accent;
+            el("accent-color-picker").value = accentColor(button.dataset.accent);
+            saveThemeSettings();
+          });
+        });
+      }
+
+      function showView(view) {
+        document.querySelectorAll("nav button").forEach((button) => button.classList.toggle("active", button.dataset.view === view));
+        document.querySelectorAll(".view").forEach((panel) => panel.classList.toggle("active", panel.id === view));
+        el("page-title").textContent = labels[view][0];
+        el("page-subtitle").textContent = labels[view][1];
+        const analysisViews = new Set(["performance-industry", "monthly-trend", "risk-analysis", "portfolio-analysis", "next-month-forecast", "business-plan"]);
+        el("analysis-slicers").classList.toggle("visible", analysisViews.has(view));
+      }
+
+      function applySavedTheme() {
+        const settings = JSON.parse(localStorage.getItem("hanexRevenueTheme") || '{"theme":"light","accent":"green"}');
+        el("theme-select").value = settings.theme || "light";
+        el("accent-select").value = settings.accent || "green";
+        el("nav-color-picker").value = settings.navColor || themeNavColor(settings.theme || "light");
+        el("accent-color-picker").value = settings.accentColor || accentColor(settings.accent || "green");
+        applyTheme(settings.theme || "light", settings.accent || "green", settings);
+      }
+
+      function saveThemeSettings() {
+        const theme = el("theme-select").value;
+        const accent = el("accent-select").value;
+        const settings = {
+          theme,
+          accent,
+          navColor: el("nav-color-picker").value,
+          accentColor: el("accent-color-picker").value
+        };
+        localStorage.setItem("hanexRevenueTheme", JSON.stringify(settings));
+        applyTheme(theme, accent, settings);
+      }
+
+      function applyTheme(theme, accent, settings = {}) {
+        const themeVars = {
+          light: { bg: "#edf2f4", card: "#ffffff", text: "#06131d", nav: "#111d26", nav2: "#1f3340", line: "#d5dde3" },
+          soft: { bg: "#eef5f3", card: "#ffffff", text: "#10221f", nav: "#12302c", nav2: "#214942", line: "#cfded9" },
+          steel: { bg: "#e9eef2", card: "#ffffff", text: "#17212a", nav: "#101820", nav2: "#283845", line: "#ccd6de" },
+          warm: { bg: "#f4f1ec", card: "#ffffff", text: "#211910", nav: "#241d18", nav2: "#3a2d24", line: "#ded5c9" },
+          forest: { bg: "#edf3ee", card: "#ffffff", text: "#0d1f18", nav: "#0d2119", nav2: "#1d3e31", line: "#cadbd2" },
+          dark: { bg: "#0f1720", card: "#182430", text: "#edf6fb", nav: "#071018", nav2: "#213241", line: "#334858" },
+          clean: { bg: "#f7f9fb", card: "#ffffff", text: "#18202a", nav: "#17212b", nav2: "#253647", line: "#dfe6eb" }
+        }[theme] || {};
+        const accentVars = {
+          green: { green: "#078260", blue: "#1769aa" },
+          blue: { green: "#1d5fd1", blue: "#1d5fd1" },
+          teal: { green: "#008c95", blue: "#008c95" },
+          navy: { green: "#174075", blue: "#174075" },
+          red: { green: "#b8323a", blue: "#b8323a" },
+          gold: { green: "#a66a00", blue: "#a66a00" }
+        }[accent] || {};
+        const customVars = {};
+        if (settings.navColor) {
+          customVars.nav = settings.navColor;
+          customVars.nav2 = shadeColor(settings.navColor, 18);
+        }
+        if (settings.accentColor) {
+          customVars.green = settings.accentColor;
+          customVars.blue = settings.accentColor;
+        }
+        Object.entries({ ...themeVars, ...accentVars, ...customVars }).forEach(([key, value]) => document.documentElement.style.setProperty(`--${key}`, value));
+        document.querySelectorAll(".swatch").forEach((button) => {
+          button.classList.toggle("active", button.dataset.accent === accent);
+        });
+      }
+
+      function shadeColor(hex, percent) {
+        const value = String(hex || "").replace("#", "");
+        if (value.length !== 6) return hex;
+        const num = parseInt(value, 16);
+        const amt = Math.round(2.55 * percent);
+        const r = Math.max(0, Math.min(255, (num >> 16) + amt));
+        const g = Math.max(0, Math.min(255, ((num >> 8) & 0xff) + amt));
+        const b = Math.max(0, Math.min(255, (num & 0xff) + amt));
+        return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
+      }
+
+      function themeNavColor(theme) {
+        return {
+          light: "#111d26",
+          soft: "#12302c",
+          steel: "#101820",
+          warm: "#241d18",
+          forest: "#0d2119",
+          dark: "#071018",
+          clean: "#17212b"
+        }[theme] || "#111d26";
+      }
+
+      function accentColor(accent) {
+        return {
+          green: "#078260",
+          blue: "#1d5fd1",
+          teal: "#008c95",
+          navy: "#174075",
+          red: "#b8323a",
+          gold: "#a66a00"
+        }[accent] || "#078260";
+      }
+
+      function handleUploadSelection(key, event) {
+        state[key] = event.target.files && event.target.files[0] ? event.target.files[0] : null;
+        const names = [state.salesFile && `매출: ${state.salesFile.name}`, state.otherFile && `기타: ${state.otherFile.name}`].filter(Boolean);
+        setUploadStatus(names.length ? names.join(" / ") : "대기 중");
+      }
+
+      function setUploadStatus(message) {
+        state.lastStatus = message || "대기 중";
+      }
+
+      function showUploadStatus() {
+        const saved = savedUploadRows();
+        const salesSaved = Number(saved.salesCount || 0) > 0;
+        const otherSaved = Number(saved.otherCount || 0) > 0;
+        const salesLine = salesSaved
+          ? `매출 : 엑셀 파일 업로드 및 저장 완료 (${fmt(saved.salesCount)}행)`
+          : state.salesFile
+            ? "매출 : 엑셀 파일 업로드 완료 / 저장 대기 중"
+            : "매출 : 파일 미선택";
+        const otherLine = otherSaved
+          ? `매출(기타) : 엑셀 파일 업로드 및 저장 완료 (${fmt(saved.otherCount)}행)`
+          : state.otherFile
+            ? "매출(기타) : 엑셀 파일 업로드 완료 / 저장 대기 중"
+            : "매출(기타) : 파일 미선택";
+        const runLine = state.rows.length
+          ? `업로드 실행 : 화면 반영 완료 (${fmt(state.rows.length)}행)`
+          : "업로드 실행 : 대기 중";
+        const lines = [
+          salesLine,
+          otherLine,
+          saved.rows.length ? `파일 저장 : 저장 완료 (${fmt(saved.rows.length)}행)` : state.lastStatus === "저장 진행 중" ? "파일 저장 : 저장 진행 중" : "파일 저장 : 대기 중",
+          runLine,
+          `최근 처리 : ${state.lastStatus || "대기 중"}`,
+          saved.savedAt ? `저장 시각: ${saved.savedAt}` : "",
+          saved.fileNames && saved.fileNames.length ? `저장 파일: ${saved.fileNames.join(" / ")}` : ""
+        ].filter(Boolean);
+        alert(lines.join("\n"));
+      }
+
+      function savedUploadRows() {
+        try {
+          return JSON.parse(localStorage.getItem(SAVED_UPLOAD_KEY) || "{\"rows\":[],\"fileNames\":[],\"savedAt\":\"\"}");
+        } catch {
+          return { rows: [], fileNames: [], savedAt: "" };
+        }
+      }
+
+      function setSavedUploadRows(payload) {
+        localStorage.setItem(SAVED_UPLOAD_KEY, JSON.stringify(payload));
+      }
+
+      function openHistoryDb() {
+        return new Promise((resolve, reject) => {
+          const request = indexedDB.open(HISTORY_DB_NAME, 2);
+          request.onupgradeneeded = () => {
+            const db = request.result;
+            if (!db.objectStoreNames.contains(HISTORY_STORE_NAME)) db.createObjectStore(HISTORY_STORE_NAME, { keyPath: "id" });
+            if (!db.objectStoreNames.contains(DATASET_STORE_NAME)) db.createObjectStore(DATASET_STORE_NAME, { keyPath: "id" });
+          };
+          request.onsuccess = () => resolve(request.result);
+          request.onerror = () => reject(request.error || new Error("파일 저장소를 열 수 없습니다."));
+        });
+      }
+
+      async function loadCumulativeDataset() {
+        const db = await openHistoryDb();
+        return new Promise((resolve, reject) => {
+          const transaction = db.transaction(DATASET_STORE_NAME, "readonly");
+          const request = transaction.objectStore(DATASET_STORE_NAME).get("cumulative");
+          request.onsuccess = () => resolve(request.result?.rows || []);
+          request.onerror = () => reject(request.error || new Error("누적 데이터를 불러올 수 없습니다."));
+          transaction.oncomplete = () => db.close();
+        });
+      }
+
+      async function saveCumulativeDataset(rows) {
+        const db = await openHistoryDb();
+        return new Promise((resolve, reject) => {
+          const transaction = db.transaction(DATASET_STORE_NAME, "readwrite");
+          transaction.objectStore(DATASET_STORE_NAME).put({ id: "cumulative", rows, savedAt: Date.now() });
+          transaction.oncomplete = () => { db.close(); resolve(); };
+          transaction.onerror = () => reject(transaction.error || new Error("누적 데이터를 저장할 수 없습니다."));
+        });
+      }
+
+      async function clearCumulativeDataset() {
+        const db = await openHistoryDb();
+        return new Promise((resolve, reject) => {
+          const transaction = db.transaction(DATASET_STORE_NAME, "readwrite");
+          transaction.objectStore(DATASET_STORE_NAME).delete("cumulative");
+          transaction.oncomplete = () => { db.close(); resolve(); };
+          transaction.onerror = () => reject(transaction.error || new Error("누적 데이터를 초기화할 수 없습니다."));
+        });
+      }
+
+      function mergePeriodRows(existingRows, incomingRows) {
+        const incomingKeys = new Set(incomingRows.map((row) => `${row.source}|${row.year}|${row.month}`));
+        return [...existingRows.filter((row) => !incomingKeys.has(`${row.source}|${row.year}|${row.month}`)), ...incomingRows];
+      }
+
+      async function saveHistoryFileBlobs(id, files) {
+        const db = await openHistoryDb();
+        const storedFiles = files.filter(Boolean).map((file) => ({
+          name: file.name,
+          type: file.type || "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          blob: file.slice(0, file.size, file.type)
+        }));
+        return new Promise((resolve, reject) => {
+          const tx = db.transaction(HISTORY_STORE_NAME, "readwrite");
+          tx.objectStore(HISTORY_STORE_NAME).put({ id, files: storedFiles });
+          tx.oncomplete = () => { db.close(); resolve(); };
+          tx.onerror = () => { db.close(); reject(tx.error || new Error("원본 파일 저장에 실패했습니다.")); };
+        });
+      }
+
+      async function historyFileRecord(id) {
+        const db = await openHistoryDb();
+        return new Promise((resolve, reject) => {
+          const tx = db.transaction(HISTORY_STORE_NAME, "readonly");
+          const request = tx.objectStore(HISTORY_STORE_NAME).get(id);
+          request.onsuccess = () => { db.close(); resolve(request.result); };
+          request.onerror = () => { db.close(); reject(request.error); };
+        });
+      }
+
+      async function allHistoryFileRecords() {
+        const db = await openHistoryDb();
+        return new Promise((resolve, reject) => {
+          const tx = db.transaction(HISTORY_STORE_NAME, "readonly");
+          const request = tx.objectStore(HISTORY_STORE_NAME).getAll();
+          request.onsuccess = () => resolve(request.result || []);
+          request.onerror = () => reject(request.error || new Error("실적 이력 파일을 불러올 수 없습니다."));
+          tx.oncomplete = () => db.close();
+        });
+      }
+
+      function detectWorkbookType(rows, fileName) {
+        const sample = rows[0] || {};
+        const keys = Object.keys(sample).map((key) => String(key).toUpperCase());
+        if (keys.includes("GOAL") || keys.includes("FORECAST") || keys.includes("MONTH_CD")) return "sales";
+        if (keys.includes("AMOUNT") || Object.keys(sample).includes("금액")) return "salesOther";
+        return String(fileName || "").includes("기타") ? "salesOther" : "sales";
+      }
+
+      async function rebuildCumulativeFromHistory(existingRows) {
+        if (!window.XLSX) return enrichRows(existingRows);
+        const items = historyItems().filter((item) => item.id);
+        if (!items.length) return enrichRows(existingRows);
+        const records = await allHistoryFileRecords();
+        const recordMap = new Map(records.map((record) => [record.id, record]));
+        let cumulative = enrichRows(existingRows);
+        for (const item of [...items].reverse()) {
+          const record = recordMap.get(item.id);
+          if (!record?.files?.length) continue;
+          const periodRows = [];
+          for (const file of record.files) {
+            try {
+              const workbook = await readWorkbook(file.blob);
+              const rawRows = firstSheetRows(workbook);
+              const maps = buildCustomerMaps([]);
+              const type = detectWorkbookType(rawRows, file.name);
+              const normalized = type === "salesOther"
+                ? normalizeOtherSalesRows(rawRows, maps)
+                : normalizeSalesRows(rawRows, maps);
+              const forcedYear = String(item.year || "").trim();
+              const forcedMonth = String(item.month || "").trim().padStart(2, "0");
+              periodRows.push(...normalized.map((row) => ({
+                ...row,
+                year: /^\d{4}$/.test(forcedYear) ? forcedYear : row.year,
+                month: /^(0[1-9]|1[0-2])$/.test(forcedMonth) ? forcedMonth : row.month
+              })));
+            } catch (error) {
+              console.error(`이력 파일 복원 실패: ${file.name}`, error);
+            }
+          }
+          if (periodRows.length) cumulative = enrichRows(mergePeriodRows(cumulative, periodRows));
+        }
+        await saveCumulativeDataset(cumulative);
+        return cumulative;
+      }
+
+      function historyPeriod(item) {
+        const oldYm = String(item.ym || "").match(/(20\d{2})[-./년\s]*(\d{1,2})?/);
+        return {
+          year: String(item.year || oldYm?.[1] || "").trim(),
+          month: String(item.month || oldYm?.[2] || "").trim().padStart(2, "0")
+        };
+      }
+
+      function historyDataMismatch(month) {
+        const candidates = historyItems().filter((item) => {
+          const period = historyPeriod(item);
+          return period.month === month && (!state.analysis.year || period.year === state.analysis.year);
+        });
+        if (!candidates.length) return false;
+        const item = candidates[0];
+        const period = historyPeriod(item);
+        const actualRows = enrichRows(state.rows).filter((row) => row.year === period.year && row.month === period.month);
+        const actual = actualRows.reduce((sum, row) => sum + Number(row.result || 0), 0);
+        return Math.abs(actual - Number(item.result || 0)) > 1;
+      }
+
+      async function ensureHistoryMonthLoaded(month) {
+        if (!historyDataMismatch(month)) return;
+        state.rows = await rebuildCumulativeFromHistory(state.rows);
+        refreshFilters();
+        refreshAnalysisSlicers();
+      }
+
+      async function ensureAllHistoryLoaded() {
+        const months = unique(historyItems().map((item) => historyPeriod(item).month).filter((month) => /^(0[1-9]|1[0-2])$/.test(month)));
+        if (!months.some((month) => historyDataMismatch(month))) return;
+        state.rows = await rebuildCumulativeFromHistory(state.rows);
+        refreshFilters();
+        refreshAnalysisSlicers();
+      }
+
+      async function downloadHistoryFiles(id) {
+        try {
+          const record = await historyFileRecord(id);
+          if (!record?.files?.length) throw new Error("저장된 원본 파일이 없습니다.");
+          record.files.forEach((file, index) => {
+            setTimeout(() => {
+              const url = URL.createObjectURL(file.blob);
+              const link = document.createElement("a");
+              link.href = url;
+              link.download = file.name;
+              link.click();
+              setTimeout(() => URL.revokeObjectURL(url), 1000);
+            }, index * 250);
+          });
+        } catch (error) {
+          alert(`파일 다운로드 중 오류가 발생했습니다: ${error.message}`);
+        }
+      }
+
+      async function clearHistoryFileBlobs() {
+        const db = await openHistoryDb();
+        return new Promise((resolve, reject) => {
+          const tx = db.transaction(HISTORY_STORE_NAME, "readwrite");
+          tx.objectStore(HISTORY_STORE_NAME).clear();
+          tx.oncomplete = () => { db.close(); resolve(); };
+          tx.onerror = () => { db.close(); reject(tx.error); };
+        });
+      }
+
+      function syncAutoLabels() {
+        const isOther = el("source-menu").value === "salesOther";
+        el("auto-menu").textContent = isOther ? "매출(기타)" : "매출";
+        el("auto-year").textContent = el("year-select").value || "-";
+        el("auto-month-start").textContent = isOther ? "사용 안 함" : (el("month-select").value || "-");
+        el("auto-month-end").textContent = isOther ? "사용 안 함" : (el("month-select").value || "-");
+        el("auto-dept").textContent = el("dept-input").value || "61,62,63";
+        el("month-select").disabled = isOther;
+        el("helios-path-text").textContent = isOther
+          ? "경영정보 2.0 > 손익관리 > 유통부문 > 매출(기타) 화면을 열어둡니다."
+          : "경영정보 2.0 > 손익관리 > 유통부문 > 매출 화면을 열어둡니다.";
+        el("helios-condition-text").textContent = isOther
+          ? "편성년도와 부서 값을 기준으로 조회 조건을 맞춥니다."
+          : "편성년도, 시작월, 종료월, 부서 값을 기준으로 조회 조건을 맞춥니다.";
+      }
+
+      function masterKey(item) {
+        return [item.helios, item.customer, item.gaon].map((v) => String(v || "").trim()).find(Boolean) || `master-${Date.now()}`;
+      }
+
+      function masterOverrides() {
+        try {
+          return JSON.parse(localStorage.getItem("hanexCustomerMasterOverrides_v3") || "{}");
+        } catch {
+          return {};
+        }
+      }
+
+      function setMasterOverrides(store) {
+        localStorage.setItem("hanexCustomerMasterOverrides_v3", JSON.stringify(store));
+      }
+
+      function currentCustomerMaster() {
+        const map = new Map();
+        (window.CUSTOMER_MASTER || []).forEach((item) => {
+          const normalized = normalizeMasterItem(item, "기본");
+          map.set(masterKey(normalized), normalized);
+        });
+        Object.values(masterOverrides()).forEach((item) => {
+          const normalized = normalizeMasterItem(item, "수정");
+          const key = item.key || masterKey(normalized);
+          if (item.deleted) map.delete(key);
+          else map.set(key, { ...normalized, key, source: "수정" });
+        });
+        return [...map.values()].sort((a, b) => (a.customer || a.gaon || a.helios).localeCompare(b.customer || b.gaon || b.helios, "ko"));
+      }
+
+      function inferBusinessCategory(customerName) {
+        const name = String(customerName || "").toLowerCase().replace(/\s+/g, "");
+        const matches = (keywords) => keywords.some((keyword) => name.includes(String(keyword).toLowerCase().replace(/\s+/g, "")));
+        if (matches(["디아지오", "윈저", "바카디", "드링크", "인터리커", "오비맥주", "국순당", "화요", "젠니혼", "리스코", "플래티넘맥주", "비어벨트", "비어밸트", "윌리엄그랜트", "디앤피스피리츠", "dnp", "다인인터내셔널", "제이앤디", "한라산", "인덜지"])) return "주류·음료";
+        if (matches(["네이처리퍼블릭", "유니레버", "카버코리아", "코스모코스", "시세이도", "에이블씨엔씨", "미샤", "헬로스킨", "맨소래덤", "멘소래담", "모린", "매그니프"])) return "뷰티·퍼스널케어";
+        if (matches(["samg", "영실업", "미미월드"])) return "완구·엔터테인먼트";
+        if (matches(["써모피셔", "피셔과학", "프로덴티", "한국프리오", "dksh", "디케이에스에이치", "한국피셔", "함소아제약"])) return "바이오·의료·과학";
+        if (matches(["에이치엘클레무브", "hl클레무브", "와이씨에이치", "ych", "한국타이어", "불스원", "bstk"])) return "자동차·산업재";
+        if (matches(["헨켈", "클로락스", "크로락스", "피죤"])) return "생활화학·홈케어";
+        if (matches(["코카콜라", "매일유업", "머거본", "한국인삼공사", "라이프앤진", "대호에프앤비", "대호f&b", "펄세스", "바이오포트", "푸드웰"])) return "식품·건강식품";
+        if (matches(["쿠팡", "서브원", "아워박스", "커머스파크", "이마트24"])) return "유통·커머스";
+        if (matches(["덴비", "제이드", "스타비젼", "스타비전"])) return "리빙·소비재";
+        return "물류·기타";
+      }
+
+      function normalizeMasterItem(item, source) {
+        const customer = String(item.customer || "").trim();
+        return {
+          key: item.key || "",
+          category: String(item.category || "").trim() || inferBusinessCategory(customer),
+          customer,
+          owner: String(item.owner || "").trim(),
+          team: String(item.team || "").trim(),
+          gaon: String(item.gaon || "").trim(),
+          helios: String(item.helios || "").trim(),
+          source
+        };
+      }
+
+      function updateMasterStatus() {
+        const count = currentCustomerMaster().length;
+        el("master-status").value = `${fmt(count)}건 탑재`;
+        el("customer-master-count").textContent = `${fmt(count)}건`;
+      }
+
+      function renderCustomerMaster() {
+        const customerQuery = String(el("master-query-customer").value || "").trim().toLowerCase();
+        const ownerQuery = String(el("master-query-owner").value || "").trim().toLowerCase();
+        const categoryQuery = String(el("master-query-category").value || "").trim();
+        const teamQuery = String(el("master-query-team").value || "").trim();
+        const items = currentCustomerMaster().filter((item) => {
+          if (customerQuery && !String(item.customer || "").toLowerCase().includes(customerQuery)) return false;
+          if (ownerQuery && !String(item.owner || "").toLowerCase().includes(ownerQuery)) return false;
+          if (categoryQuery && item.category !== categoryQuery) return false;
+          if (teamQuery && item.team !== teamQuery) return false;
+          return true;
+        });
+        const rows = [...state.masterDrafts, ...items];
+        el("customer-master-table").innerHTML = rows.map((item) => masterRowHtml(item)).join("") || emptyRow(5);
+        updateMasterStatus();
+      }
+
+      function masterTeamOptions(selected) {
+        return ["", "TPL1팀", "TPL2팀", "TPL3팀", "운송팀"].map((team) => `<option value="${esc(team)}"${team === selected ? " selected" : ""}>${esc(team || "선택")}</option>`).join("");
+      }
+
+      function masterCategoryOptions(selected) {
+        return BUSINESS_CATEGORIES.map((category) => `<option value="${esc(category)}"${category === selected ? " selected" : ""}>${esc(category)}</option>`).join("");
+      }
+
+      function masterRowHtml(item) {
+        const key = item.key || masterKey(item);
+        return `<tr data-master-key="${esc(key)}">
+          <td><input type="checkbox" class="master-row-check"></td>
+          <td><select class="input master-category-cell">${masterCategoryOptions(item.category || inferBusinessCategory(item.customer))}</select></td>
+          <td><input class="input master-customer-cell" value="${esc(item.customer)}"></td>
+          <td><input class="input master-owner-cell" value="${esc(item.owner)}"></td>
+          <td><select class="input master-team-cell">${masterTeamOptions(item.team || "")}</select></td>
+        </tr>`;
+      }
+
+      function addCustomerMasterRow() {
+        state.masterDrafts.unshift({ key: `new-${Date.now()}`, category: "물류·기타", customer: "", owner: "", team: "", gaon: "", helios: "", source: "신규" });
+        renderCustomerMaster();
+        const first = el("customer-master-table").querySelector("tr");
+        if (first) {
+          first.querySelector(".master-row-check").checked = true;
+          first.querySelector(".master-customer-cell").focus();
+        }
+      }
+
+      function checkedMasterRows() {
+        return [...document.querySelectorAll("#customer-master-table tr")].filter((row) => row.querySelector(".master-row-check")?.checked);
+      }
+
+      function focusSelectedCustomerMaster() {
+        const rows = checkedMasterRows();
+        if (!rows.length) {
+          alert("수정할 거래처를 체크해주세요.");
+          return;
+        }
+        rows[0].querySelector(".master-customer-cell")?.focus();
+      }
+
+      function readMasterRow(row) {
+        const key = row.dataset.masterKey;
+        const existing = currentCustomerMaster().find((item) => (item.key || masterKey(item)) === key) || {};
+        return normalizeMasterItem({
+          ...existing,
+          key,
+          category: row.querySelector(".master-category-cell")?.value,
+          customer: row.querySelector(".master-customer-cell")?.value,
+          owner: row.querySelector(".master-owner-cell")?.value,
+          team: row.querySelector(".master-team-cell")?.value
+        }, "수정");
+      }
+
+      function saveCheckedCustomerMasterRows() {
+        const rows = checkedMasterRows();
+        if (!rows.length) {
+          alert("저장할 거래처를 체크해주세요.");
+          return;
+        }
+        const store = masterOverrides();
+        let saved = 0;
+        rows.forEach((row) => {
+          const item = readMasterRow(row);
+          if (!item.customer) return;
+          const key = row.dataset.masterKey.startsWith("new-") ? masterKey(item) : row.dataset.masterKey;
+          store[key] = { ...item, key, deleted: false };
+          saved += 1;
+        });
+        if (!saved) {
+          alert("거래처명을 입력한 행만 저장할 수 있습니다.");
+          return;
+        }
+        setMasterOverrides(store);
+        state.masterDrafts = [];
+        renderCustomerMaster();
+        refreshAnalysisSlicers();
+        render();
+        alert(`${fmt(saved)}건 저장했습니다.`);
+      }
+
+      function deleteSelectedCustomerMaster() {
+        const rows = checkedMasterRows();
+        if (!rows.length) {
+          alert("삭제할 거래처를 먼저 선택해주세요.");
+          return;
+        }
+        if (!confirm("체크한 거래처 매핑을 삭제할까요?")) return;
+        const store = masterOverrides();
+        rows.forEach((row) => {
+          const key = row.dataset.masterKey;
+          if (key.startsWith("new-")) return;
+          store[key] = { key, deleted: true };
+        });
+        setMasterOverrides(store);
+        state.masterDrafts = state.masterDrafts.filter((item) => !rows.some((row) => row.dataset.masterKey === item.key));
+        renderCustomerMaster();
+        refreshAnalysisSlicers();
+        render();
+      }
+
+      function syncStateAndRender() {
+        state.team = el("team-filter").value;
+        state.account = el("account-filter").value;
+        state.customer = el("customer-filter").value;
+        state.metric = el("metric-filter").value;
+        state.period = el("period-filter").value;
+        render();
+      }
+
+      function resetAll() {
+        state.salesFile = null;
+        state.otherFile = null;
+        state.team = "";
+        state.account = "";
+        state.customer = "";
+        state.metric = "forecast";
+        state.period = "current";
+        state.analysis = { year: "", months: [], allMonths: false, businessTeam: "", category: "", manager: "", center: "", customer: "" };
+        state.masterDrafts = [];
+        el("source-menu").value = "sales";
+        el("year-select").value = new Date().getFullYear();
+        el("month-select").value = String(new Date().getMonth() + 1).padStart(2, "0");
+        el("dept-input").value = "61,62,63";
+        el("sales-file").value = "";
+        el("other-file").value = "";
+        setUploadStatus("대기 중");
+        el("master-query-customer").value = "";
+        el("master-query-owner").value = "";
+        el("master-query-category").value = "";
+        el("master-query-team").value = "";
+        el("master-check-all").checked = false;
+        el("metric-filter").value = "forecast";
+        el("period-filter").value = "current";
+        syncAutoLabels();
+        refreshFilters();
+        refreshAnalysisSlicers();
+        render();
+      }
+
+      function runHeliosDownload() {
+        const isOther = el("source-menu").value === "salesOther";
+        const menu = isOther ? "other" : "sales";
+        const menuLabel = isOther ? "매출(기타)" : "매출";
+        const month = el("month-select").value;
+        setUploadStatus(`${menuLabel} 도우미 실행 요청 (${month}월)`);
+        window.location.href = `hanexhelios://open?menu=${encodeURIComponent(menu)}&month=${encodeURIComponent(month)}`;
+      }
+
+      function readWorkbook(file) {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            try {
+              resolve(XLSX.read(event.target.result, { type: "array", cellDates: true }));
+            } catch (error) {
+              reject(error);
+            }
+          };
+          reader.onerror = () => reject(new Error("파일을 읽을 수 없습니다."));
+          reader.readAsArrayBuffer(file);
+        });
+      }
+
+      async function parseSelectedWorkbookFiles() {
+        const customerMaps = buildCustomerMaps([]);
+        let salesRows = [];
+        let otherRows = [];
+        if (state.salesFile) {
+          const workbook = await readWorkbook(state.salesFile);
+          salesRows = normalizeSalesRows(firstSheetRows(workbook), customerMaps);
+        }
+        if (state.otherFile) {
+          const workbook = await readWorkbook(state.otherFile);
+          otherRows = normalizeOtherSalesRows(firstSheetRows(workbook), customerMaps);
+        }
+        return {
+          rows: [...salesRows, ...otherRows],
+          salesRows,
+          otherRows,
+          fileNames: [state.salesFile && state.salesFile.name, state.otherFile && state.otherFile.name].filter(Boolean)
+        };
+      }
+
+      async function saveSelectedWorkbookFiles() {
+        if (!window.XLSX) {
+          alert("엑셀 처리 모듈을 불러오지 못했습니다. 인터넷 연결 후 다시 시도해주세요.");
+          return;
+        }
+        if (!state.salesFile && !state.otherFile) {
+          alert("저장할 매출 파일 또는 매출(기타) 파일을 먼저 선택해주세요.");
+          return;
+        }
+        try {
+          setUploadStatus("저장 진행 중");
+          const parsed = await parseSelectedWorkbookFiles();
+          if (!parsed.rows.length) throw new Error("저장 가능한 데이터가 없습니다.");
+          const payload = {
+            rows: enrichRows(parsed.rows),
+            fileNames: parsed.fileNames,
+            salesCount: parsed.salesRows.length,
+            otherCount: parsed.otherRows.length,
+            savedAt: new Date().toLocaleString("ko-KR")
+          };
+          setSavedUploadRows(payload);
+          const existingRows = await loadCumulativeDataset();
+          const cumulativeRows = enrichRows(mergePeriodRows(existingRows, parsed.rows));
+          await saveCumulativeDataset(cumulativeRows);
+          state.rows = cumulativeRows;
+          refreshFilters();
+          refreshAnalysisSlicers();
+          render();
+          const historyId = `history-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+          const summary = parsed.rows.reduce((acc, row) => {
+            acc.goal += Number(row.goal || 0);
+            acc.forecast += Number(row.forecast || 0);
+            acc.guess += Number(row.guess || 0);
+            acc.result += Number(row.result || 0);
+            return acc;
+          }, { goal: 0, forecast: 0, guess: 0, result: 0 });
+          const historyLabel = parsed.fileNames.map((name) => name.replace(/\.(xlsx|xls)$/i, "")).join(" / ") || "실적 파일";
+          const historyYear = parsed.rows.map((row) => String(row.year || "").trim()).find(Boolean) || String(el("year-select").value || "");
+          const historyMonth = parsed.rows.map((row) => String(row.month || "").trim().padStart(2, "0")).find((value) => value && value !== "00") || String(el("month-select").value || "");
+          await saveHistoryFileBlobs(historyId, [state.salesFile, state.otherFile]);
+          const historyItem = {
+            id: historyId,
+            year: historyYear,
+            month: historyMonth,
+            label: historyLabel,
+            goal: summary.goal,
+            forecast: summary.forecast,
+            result: summary.result,
+            gap: summary.goal - summary.result
+          };
+          setHistoryItems([historyItem, ...historyItems()].slice(0, 60));
+          renderHistory();
+          setUploadStatus(`파일 저장 완료: ${fmt(parsed.rows.length)}행`);
+          alert(`파일 저장이 완료되었습니다.\n매출 ${fmt(parsed.salesRows.length)}행 / 매출(기타) ${fmt(parsed.otherRows.length)}행\n\n실적 이력에 저장되었으며 원본 파일을 다시 다운로드할 수 있습니다.`);
+        } catch (error) {
+          console.error(error);
+          setUploadStatus(`파일 저장 오류: ${error.message}`);
+          alert(`파일 저장 중 오류가 발생했습니다: ${error.message}`);
+        }
+      }
+
+      async function applyWorkbookFiles() {
+        if (!window.XLSX) {
+          alert("엑셀 처리 모듈을 불러오지 못했습니다. 인터넷 연결 후 다시 시도해주세요.");
+          return;
+        }
+        try {
+          const parsed = state.salesFile || state.otherFile ? await parseSelectedWorkbookFiles() : savedUploadRows();
+          const salesRows = parsed.salesRows || [];
+          const otherRows = parsed.otherRows || [];
+          const salesCount = parsed.salesCount ?? salesRows.length;
+          const otherCount = parsed.otherCount ?? otherRows.length;
+          const existingRows = await loadCumulativeDataset();
+          state.rows = enrichRows(state.salesFile || state.otherFile
+            ? mergePeriodRows(existingRows, parsed.rows || [])
+            : (existingRows.length ? existingRows : parsed.rows || []));
+          if (!state.rows.length) throw new Error("집계 가능한 데이터가 없습니다.");
+          setUploadStatus(`업로드 실행 완료: ${fmt(state.rows.length)}행 반영`);
+          const first = state.rows[0];
+          if (first.year) el("year-select").value = first.year;
+          if (first.month) el("month-select").value = first.month;
+          syncAutoLabels();
+          refreshFilters();
+          refreshAnalysisSlicers();
+          render();
+          alert(`업로드 실행이 완료되었습니다.\n매출 ${fmt(salesCount)}행 / 매출(기타) ${fmt(otherCount)}행\n총 ${fmt(state.rows.length)}행이 화면에 반영되었습니다.`);
+        } catch (error) {
+          console.error(error);
+          setUploadStatus(`업로드 실행 오류: ${error.message}`);
+          alert(`업로드 파일 반영 중 오류가 발생했습니다: ${error.message}`);
+        }
+      }
+
+      function firstSheetRows(workbook) {
+        const sheetName = workbook.SheetNames[0];
+        return sheetName ? XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { defval: "", raw: false }) : [];
+      }
+
+      function sheetRows(workbook, targetName) {
+        const sheetName = workbook.SheetNames.find((name) => name.replace(/\s+/g, "") === targetName.replace(/\s+/g, ""));
+        if (!sheetName) return [];
+        return XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { defval: "", raw: false });
+      }
+
+      function buildCustomerMaps(rows) {
+        const alias = new Map();
+        const manager = new Map();
+        const businessTeam = new Map();
+        const category = new Map();
+        const defaultRows = currentCustomerMaster().map((item) => ({
+          거래처명: item.customer,
+          담당: item.owner || item.team,
+          팀명: item.team,
+          카테고리: item.category,
+          GAON: item.gaon,
+          헬리오스: item.helios
+        }));
+        [...defaultRows, ...rows].forEach((r) => {
+          const customer = String(pick(r, ["거래처명", "customer"])).trim();
+          const owner = String(pick(r, ["담당", "owner"])).trim();
+          const teamName = String(pick(r, ["팀명", "team"])).trim();
+          const categoryName = String(pick(r, ["카테고리", "category"])).trim();
+          const gaon = String(pick(r, ["GAON", "gaon"])).trim();
+          const helios = String(pick(r, ["헬리오스", "helios"])).trim();
+          if (helios && gaon) alias.set(helios, gaon);
+          if (customer && gaon) alias.set(customer, gaon);
+          if (customer && owner) manager.set(customer, owner);
+          if (helios && owner) manager.set(helios, owner);
+          if (gaon && owner) manager.set(gaon, owner);
+          [customer, helios, gaon].filter(Boolean).forEach((name) => {
+            if (teamName) businessTeam.set(name, teamName);
+            if (categoryName) category.set(name, categoryName);
+          });
+        });
+        return { alias, manager, businessTeam, category };
+      }
+
+      function normalizeCustomerName(name, maps) {
+        const value = String(name || "").trim();
+        return maps.alias.get(value) || value || "미지정";
+      }
+
+      function amountToThousand(value) {
+        const amount = number(value);
+        return Math.abs(amount) >= 100000 ? Math.round(amount / 1000) : amount;
+      }
+
+      function normalizeCenterName(name) {
+        const value = String(name || "").trim();
+        if (!value) return "미지정";
+        return value
+          .replace(/\([^)]*팀\)\s*$/g, "")
+          .replace(/상온/g, "센터")
+          .replace(/\s+/g, " ")
+          .trim() || "미지정";
+      }
+
+      function enrichRows(rows) {
+        const maps = buildCustomerMaps([]);
+        return (rows || []).map((row) => {
+          const customer = normalizeCustomerName(row.customer, maps);
+          return {
+            ...row,
+            customer,
+            center: row.center || normalizeCenterName(row.team),
+            manager: row.manager || maps.manager.get(customer) || "미지정",
+            businessTeam: row.businessTeam || maps.businessTeam.get(customer) || "미지정",
+            category: row.category || maps.category.get(customer) || inferBusinessCategory(customer)
+          };
+        });
+      }
+
+      function normalizeSalesRows(rows, maps) {
+        return rows.map((r) => {
+          const team = String(pick(r, ["TEAM_NM", "팀명"])).trim() || "미지정";
+          const customer = normalizeCustomerName(pick(r, ["CUST_NM", "거래처"]), maps);
+          return {
+          source: "매출",
+          status: pick(r, ["status"]),
+          year: String(pick(r, ["YEAR_CD", "편성년도"])).trim(),
+          month: String(pick(r, ["MONTH_CD", "월"])).padStart(2, "0"),
+          teamCode: String(pick(r, ["TEAM_CD", "팀코드"])).trim(),
+          team,
+          center: normalizeCenterName(team),
+          hamul: String(pick(r, ["HAMUL_TP_NM", "화물구분"])).trim(),
+          customer,
+          acctCode: String(pick(r, ["ACCT_CD", "계정코드"])).trim(),
+          account: String(pick(r, ["ACCT_NM", "계정명"])).trim() || "미지정",
+          goal: number(pick(r, ["GOAL", "목표"])),
+          forecast: number(pick(r, ["FORECAST", "예측"])),
+          guess: number(pick(r, ["GUESS", "추정"])),
+          result: number(pick(r, ["RESULT", "실적"])),
+          forecastRemark: String(pick(r, ["FORECAST_REMARK", "예측비고"])).trim(),
+          guessRemark: String(pick(r, ["GUESS_REMARK", "추정비고"])).trim(),
+          beforeGoal: number(pick(r, ["GOAL_BEFORE_MONTH", "전월목표"])),
+          beforeForecast: number(pick(r, ["FORECAST_BEFORE_MONTH", "전월예측"])),
+          beforeGuess: number(pick(r, ["GUESS_BEFORE_MONTH", "전월추정"])),
+          beforeResult: number(pick(r, ["RESULT_BEFORE_MONTH", "전월실적"])),
+          businessTeam: String(pick(r, ["팀", "팀명(매핑)"])).trim() || maps.businessTeam.get(customer) || "미지정",
+          category: String(pick(r, ["카테고리", "CATEGORY"])).trim() || maps.category.get(customer) || inferBusinessCategory(customer),
+          manager: String(pick(r, ["담당자"])).trim() || maps.manager.get(customer) || "미지정"
+          };
+        }).filter((r) => r.team || r.account || r.goal || r.forecast || r.guess || r.result);
+      }
+
+      function normalizeOtherSalesRows(rows, maps) {
+        return rows.map((r) => {
+          const rawCustomer = pick(r, ["거래처명", "CUST_NM"]);
+          const customer = normalizeCustomerName(rawCustomer || pick(r, ["CUST_NM", "J"]), maps);
+          const amount = amountToThousand(pick(r, ["금액", "AMOUNT"]));
+          return {
+            source: "매출(기타)",
+            status: pick(r, ["status"]),
+            year: String(pick(r, ["연도", "YEAR_CD"])).trim(),
+            month: String(pick(r, ["월", "MONTH_CD"])).padStart(2, "0"),
+            teamCode: String(pick(r, ["TEAMCODE", "TEAM_CD"])).trim(),
+            team: String(pick(r, ["센터명", "TEAM_NM"])).trim() || "미지정",
+            center: normalizeCenterName(pick(r, ["센터명", "TEAM_NM"])),
+            hamul: String(pick(r, ["SERVICE_NM"])).trim() || "유통물류",
+            customer,
+            acctCode: String(pick(r, ["REFACCTCODE", "ACCT_CD"])).trim(),
+            account: String(pick(r, ["계정명", "ACCT_NM"])).trim() || "미지정",
+            goal: 0,
+            forecast: 0,
+            guess: 0,
+            result: amount,
+            forecastRemark: "",
+            guessRemark: "",
+            beforeGoal: 0,
+            beforeForecast: 0,
+            beforeGuess: 0,
+            beforeResult: 0,
+            businessTeam: String(pick(r, ["팀", "팀명(매핑)"])).trim() || maps.businessTeam.get(customer) || "미지정",
+            category: String(pick(r, ["카테고리", "CATEGORY"])).trim() || maps.category.get(customer) || inferBusinessCategory(customer),
+            manager: String(pick(r, ["담당자"])).trim() || maps.manager.get(customer) || "미지정"
+          };
+        }).filter((r) => r.year && r.customer !== "미지정" && r.account !== "미지정" && r.result);
+      }
+
+      function pick(row, keys) {
+        for (const key of keys) {
+          if (row[key] !== undefined && row[key] !== null && row[key] !== "") return row[key];
+        }
+        return "";
+      }
+
+      function refreshFilters() {
+        const current = { team: state.team, account: state.account, customer: state.customer };
+        fillSelect("team-filter", [["", "전체"], ...unique(state.rows.map((r) => r.team)).sort().map((v) => [v, v])]);
+        fillSelect("account-filter", [["", "전체"], ...unique(state.rows.map((r) => r.account)).sort().map((v) => [v, v])]);
+        fillSelect("customer-filter", [["", "전체"], ...unique(state.rows.map((r) => r.customer)).sort().map((v) => [v, v])]);
+        el("team-filter").value = current.team || "";
+        el("account-filter").value = current.account || "";
+        el("customer-filter").value = current.customer || "";
+        refreshPlanningYears();
+      }
+
+      function refreshAnalysisSlicers() {
+        const rows = enrichRows(state.rows);
+        const definitions = [
+          ["analysis-year", "year", state.analysis.year],
+          ["analysis-business-team", "businessTeam", state.analysis.businessTeam],
+          ["analysis-category", "category", state.analysis.category],
+          ["analysis-manager", "manager", state.analysis.manager],
+          ["analysis-center", "center", state.analysis.center],
+          ["analysis-customer", "customer", state.analysis.customer]
+        ];
+        definitions.forEach(([id, key, selected]) => {
+          const values = unique(rows.map((row) => row[key])).sort((a, b) => String(a).localeCompare(String(b), "ko", { numeric: true }));
+          fillSelect(id, [["", "선택 안 함"], ...values.map((value) => [value, value])]);
+          el(id).value = values.includes(selected) ? selected : "";
+          state.analysis[{ "analysis-year": "year", "analysis-business-team": "businessTeam", "analysis-category": "category", "analysis-manager": "manager", "analysis-center": "center", "analysis-customer": "customer" }[id]] = el(id).value;
+        });
+        renderMonthSlicer();
+      }
+
+      function renderMonthSlicer() {
+        const allButton = `<button class="month-chip${state.analysis.allMonths ? " active" : ""}" type="button" data-analysis-all title="전체 월">전체</button>`;
+        el("analysis-months").innerHTML = allButton + Array.from({ length: 12 }, (_, index) => String(index + 1).padStart(2, "0")).map((month) => {
+          const active = state.analysis.months.includes(month) ? " active" : "";
+          return `<button class="month-chip${active}" type="button" data-analysis-month="${month}" title="${Number(month)}월">${Number(month)}월</button>`;
+        }).join("");
+      }
+
+      function syncAnalysisAndRender() {
+        state.analysis.year = el("analysis-year").value;
+        state.analysis.businessTeam = el("analysis-business-team").value;
+        state.analysis.category = el("analysis-category").value;
+        state.analysis.manager = el("analysis-manager").value;
+        state.analysis.center = el("analysis-center").value;
+        state.analysis.customer = el("analysis-customer").value;
+        render();
+      }
+
+      function resetAnalysisFilters() {
+        state.analysis = { year: "", months: [], allMonths: false, businessTeam: "", category: "", manager: "", center: "", customer: "" };
+        refreshAnalysisSlicers();
+        render();
+      }
+
+      function fillSelect(id, pairs) {
+        el(id).innerHTML = pairs.map(([value, label]) => opt(value, label)).join("");
+      }
+
+      function rows() {
+        return state.rows.filter((r) => {
+          if (state.team && r.team !== state.team) return false;
+          if (state.account && r.account !== state.account) return false;
+          if (state.customer && r.customer !== state.customer) return false;
+          return true;
+        });
+      }
+
+      function analysisRows(ignoreMonths = false) {
+        return enrichRows(rows()).filter((row) => {
+          if (state.analysis.year && row.year !== state.analysis.year) return false;
+          if (!ignoreMonths && !state.analysis.allMonths && !state.analysis.months.length) return false;
+          if (!ignoreMonths && !state.analysis.allMonths && !state.analysis.months.includes(row.month)) return false;
+          if (state.analysis.businessTeam && row.businessTeam !== state.analysis.businessTeam) return false;
+          if (state.analysis.category && row.category !== state.analysis.category) return false;
+          if (state.analysis.manager && row.manager !== state.analysis.manager) return false;
+          if (state.analysis.center && row.center !== state.analysis.center) return false;
+          if (state.analysis.customer && row.customer !== state.analysis.customer) return false;
+          return true;
+        });
+      }
+
+      function total(list) {
+        return list.reduce((a, r) => {
+          a.goal += state.period === "before" ? r.beforeGoal : r.goal;
+          a.forecast += state.period === "before" ? r.beforeForecast : r.forecast;
+          a.guess += state.period === "before" ? r.beforeGuess : r.guess;
+          a.result += state.period === "before" ? r.beforeResult : r.result;
+          a.beforeResult += r.beforeResult;
+          a.teams.add(r.team);
+          a.accounts.add(r.account);
+          a.customers.add(r.customer);
+          a.centers.add(r.center || normalizeCenterName(r.team));
+          return a;
+        }, { goal: 0, forecast: 0, guess: 0, result: 0, beforeResult: 0, teams: new Set(), accounts: new Set(), customers: new Set(), centers: new Set() });
+      }
+
+      function groupBy(list, key) {
+        const map = new Map();
+        list.forEach((row) => {
+          const name = row[key] || "미지정";
+          if (!map.has(name)) map.set(name, []);
+          map.get(name).push(row);
+        });
+        return [...map.entries()].map(([name, items]) => ({ name, items, ...total(items) }));
+      }
+
+      function metricValue(item) {
+        if (state.metric === "goal") return item.goal;
+        if (state.metric === "guess") return item.guess;
+        if (state.metric === "result") return item.result;
+        if (state.metric === "gap") return (item.forecast + item.guess + item.result) - item.goal;
+        return item.forecast;
+      }
+
+      function metricName() {
+        return ({ goal: "목표", forecast: "예측", guess: "추정", result: "실적", gap: "목표 차이" })[state.metric] || "예측";
+      }
+
+      function expected(sum) {
+        return sum.forecast + sum.guess + sum.result;
+      }
+
+      function render() {
+        const list = rows();
+        const sum = total(list);
+        const analysisList = analysisRows();
+        const analysisSum = total(analysisList);
+        renderKpis(list, sum);
+        renderBars(groupBy(list, "team"));
+        renderSummary(sum);
+        renderTables(list, analysisList);
+        renderForecast(analysisList, analysisSum);
+        renderCustomerMonthlyAnalysis(analysisList, analysisRows(true));
+        renderForecastBreakdowns(analysisList);
+        renderCompare(analysisList, analysisSum);
+        renderAnalysisVisuals(analysisList, analysisSum);
+        renderMonthlyPerformance(analysisList, analysisRows(true), analysisSum);
+        renderRiskAnalysis(analysisList);
+        renderPortfolioAnalysis(analysisList);
+        renderDataQuality();
+        renderForecastDraft();
+        renderBusinessPlanDraft();
+        renderHistory();
+        renderCustomerMaster();
+        colorNegativeValues();
+      }
+
+      function colorNegativeValues() {
+        document.querySelectorAll("table tbody td").forEach((cell) => {
+          const value = String(cell.textContent || "").trim().replace(/,/g, "");
+          cell.classList.toggle("negative-value", /^-\d+(\.\d+)?%?$/.test(value) && Number(value.replace("%", "")) < 0);
+        });
+      }
+
+      function renderKpis(list, sum) {
+        const achieved = sum.goal ? expected(sum) / sum.goal * 100 : 0;
+        el("kpi-row").innerHTML = [
+          ["데이터 행수", fmt(list.length), `팀 ${fmt(sum.teams.size)} / 계정 ${fmt(sum.accounts.size)}`],
+          ["목표", fmt(sum.goal), "HELIOS GOAL"],
+          ["예측", fmt(sum.forecast), "HELIOS FORECAST"],
+          ["추정", fmt(sum.guess), "HELIOS GUESS"],
+          ["달성률", pct(achieved), "예측+추정+실적 기준"]
+        ].map((k) => `<article class="panel kpi"><div class="label">${k[0]}</div><div class="value">${k[1]}</div><div class="hint">${k[2]}</div></article>`).join("");
+      }
+
+      function renderBars(groups) {
+        const sorted = groups.sort((a, b) => metricValue(b) - metricValue(a)).slice(0, 10);
+        const max = Math.max(1, ...sorted.map((g) => Math.abs(metricValue(g))));
+        el("team-bar-label").textContent = `${metricName()} 기준`;
+        el("top-label").textContent = `${metricName()} 기준`;
+        el("team-bars").innerHTML = sorted.length ? sorted.map((g) => {
+          const value = metricValue(g);
+          const cls = value < 0 ? "warn" : "good";
+          return `<div class="bar-row"><b>${esc(g.name)}</b><div class="track"><div class="fill ${cls}" style="width:${Math.max(3, Math.abs(value) / max * 100)}%"></div></div><span>${fmt(value)}</span></div>`;
+        }).join("") : `<div class="empty">HELIOS 다운로드 실행 후 Export 데이터가 반영되면 팀별 그래프가 표시됩니다.</div>`;
+      }
+
+      function renderGroupBars(id, groups, valueFn, options = {}) {
+        const target = el(id);
+        if (!target) return;
+        const sorted = [...groups].sort((a, b) => {
+          const av = valueFn(a);
+          const bv = valueFn(b);
+          return options.absolute ? Math.abs(bv) - Math.abs(av) : bv - av;
+        }).slice(0, options.limit || 10);
+        const max = Math.max(1, ...sorted.map((g) => Math.abs(valueFn(g))));
+        target.innerHTML = sorted.length ? sorted.map((g) => {
+          const value = valueFn(g);
+          const cls = value < 0 ? "warn" : "good";
+          return `<div class="bar-row"><b title="${esc(g.name)}">${esc(g.name)}</b><div class="track"><div class="fill ${cls}" style="width:${Math.max(3, Math.abs(value) / max * 100)}%"></div></div><span>${fmt(value)}</span></div>`;
+        }).join("") : `<div class="empty">분석할 데이터가 없습니다.</div>`;
+      }
+
+      function renderColumnChart(id, groups, valueFn, options = {}) {
+        const target = el(id);
+        if (!target) return;
+        const sorted = [...groups].sort((a, b) => valueFn(b) - valueFn(a)).slice(0, options.limit || 10);
+        const max = Math.max(1, ...sorted.map((group) => Math.abs(valueFn(group))));
+        target.innerHTML = sorted.length ? sorted.map((group) => {
+          const value = valueFn(group);
+          const height = Math.max(3, Math.abs(value) / max * 100);
+          return `<div class="column-item" title="${esc(group.name)}: ${fmt(value)}">
+            <div class="column-value">${fmt(value)}</div>
+            <div class="column-track"><div class="column-fill${value < 0 ? " warn" : ""}" style="height:${height}%"></div></div>
+            <div class="column-label">${esc(group.name)}</div>
+          </div>`;
+        }).join("") : `<div class="empty">분석할 데이터가 없습니다.</div>`;
+      }
+
+      function renderDonutChart(id, groups, valueFn) {
+        const target = el(id);
+        if (!target) return;
+        const colors = ["#078260", "#1769aa", "#d09a24", "#be3a34", "#6b61a8", "#2f8f9d", "#7b8790"];
+        const sorted = [...groups].map((group) => ({ ...group, chartValue: Math.max(0, valueFn(group)) })).filter((group) => group.chartValue > 0).sort((a, b) => b.chartValue - a.chartValue);
+        const totalValue = sorted.reduce((sum, group) => sum + group.chartValue, 0);
+        if (!totalValue) {
+          target.innerHTML = `<div class="empty">선택한 조건에 실적 데이터가 없습니다.</div>`;
+          return;
+        }
+        const visible = sorted.slice(0, 6);
+        const remainder = sorted.slice(6).reduce((sum, group) => sum + group.chartValue, 0);
+        if (remainder > 0) visible.push({ name: "기타 고객사", chartValue: remainder });
+        let cursor = 0;
+        const segments = visible.map((group, index) => {
+          const start = cursor;
+          cursor += group.chartValue / totalValue * 100;
+          return `${colors[index % colors.length]} ${start}% ${cursor}%`;
+        });
+        target.innerHTML = `<div class="donut-layout">
+          <div class="donut-ring" style="background:conic-gradient(${segments.join(",")})">
+            <div class="donut-center"><b>${fmt(totalValue)}</b><span>총 실적</span></div>
+          </div>
+          <div class="donut-legend">${visible.map((group, index) => `<div class="donut-legend-row">
+            <span class="donut-color" style="background:${colors[index % colors.length]}"></span>
+            <span class="donut-name" title="${esc(group.name)}">${esc(group.name)}</span>
+            <b>${fmt(group.chartValue)}</b><span class="donut-share">${pct(group.chartValue / totalValue * 100)}</span>
+          </div>`).join("")}</div>
+        </div>`;
+      }
+
+      function renderMonthlyTrend(id, list) {
+        const target = el(id);
+        if (!target) return;
+        const monthGroups = groupBy(list, "month").filter((group) => /^\d{2}$/.test(group.name)).sort((a, b) => a.name.localeCompare(b.name));
+        if (!monthGroups.length) {
+          target.innerHTML = `<div class="empty">월별 데이터가 누적되면 추이가 표시됩니다.</div>`;
+          return;
+        }
+        const width = 760;
+        const height = 220;
+        const padX = 45;
+        const padY = 28;
+        const values = monthGroups.map((group) => group.result);
+        const max = Math.max(1, ...values);
+        const step = monthGroups.length > 1 ? (width - padX * 2) / (monthGroups.length - 1) : 0;
+        const points = monthGroups.map((group, index) => ({
+          x: monthGroups.length > 1 ? padX + step * index : width / 2,
+          y: height - padY - (group.result / max) * (height - padY * 2),
+          group
+        }));
+        target.innerHTML = `<svg viewBox="0 0 ${width} ${height}" role="img" aria-label="월별 실적 추이">
+          <line class="trend-grid" x1="${padX}" y1="${height - padY}" x2="${width - padX}" y2="${height - padY}"></line>
+          <polyline class="trend-line" points="${points.map((point) => `${point.x},${point.y}`).join(" ")}"></polyline>
+          ${points.map((point) => `<circle class="trend-dot" cx="${point.x}" cy="${point.y}" r="6"></circle><text class="trend-label" x="${point.x}" y="${point.y - 14}" text-anchor="middle">${fmt(point.group.result)}</text><text class="trend-label" x="${point.x}" y="${height - 7}" text-anchor="middle">${Number(point.group.name)}월</text>`).join("")}
+        </svg>`;
+      }
+
+      function periodGroups(list) {
+        const map = new Map();
+        list.forEach((row) => {
+          if (!/^\d{4}$/.test(row.year) || !/^(0[1-9]|1[0-2])$/.test(row.month)) return;
+          const key = `${row.year}|${row.month}`;
+          if (!map.has(key)) map.set(key, []);
+          map.get(key).push(row);
+        });
+        return [...map.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([key, items]) => ({ key, year: key.split("|")[0], month: key.split("|")[1], items, ...total(items) }));
+      }
+
+      function renderMultiLineChart(id, groups) {
+        const target = el(id);
+        if (!target) return;
+        if (!groups.length) {
+          target.innerHTML = `<div class="empty">월을 선택하면 목표·예측·실적 추이가 표시됩니다.</div>`;
+          return;
+        }
+        const series = [
+          { key: "goal", name: "목표", color: "#d09a24" },
+          { key: "forecast", name: "예측", color: "#1769aa" },
+          { key: "result", name: "실적", color: "#078260" }
+        ];
+        const width = 920, height = 270, padX = 58, padTop = 42, padBottom = 38;
+        const max = Math.max(1, ...groups.flatMap((group) => series.map((item) => group[item.key])));
+        const step = groups.length > 1 ? (width - padX * 2) / (groups.length - 1) : 0;
+        const point = (group, index, key) => ({ x: groups.length > 1 ? padX + step * index : width / 2, y: height - padBottom - (group[key] / max) * (height - padTop - padBottom) });
+        target.innerHTML = `<svg viewBox="0 0 ${width} ${height}" role="img" aria-label="월별 목표 예측 실적 추이">
+          ${[0, 0.5, 1].map((ratio) => `<line class="trend-grid" x1="${padX}" y1="${padTop + (height - padTop - padBottom) * ratio}" x2="${width - padX}" y2="${padTop + (height - padTop - padBottom) * ratio}"></line>`).join("")}
+          ${series.map((item, index) => `<rect x="${padX + index * 105}" y="8" width="14" height="4" rx="2" fill="${item.color}"></rect><text class="trend-label" x="${padX + 21 + index * 105}" y="14">${item.name}</text>`).join("")}
+          ${series.map((item) => `<polyline fill="none" stroke="${item.color}" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" points="${groups.map((group, index) => { const p = point(group, index, item.key); return `${p.x},${p.y}`; }).join(" ")}"></polyline>${groups.map((group, index) => { const p = point(group, index, item.key); return `<circle cx="${p.x}" cy="${p.y}" r="5" fill="white" stroke="${item.color}" stroke-width="3"></circle>`; }).join("")}`).join("")}
+          ${groups.map((group, index) => { const p = point(group, index, "result"); return `<text class="trend-label" x="${p.x}" y="${height - 10}" text-anchor="middle">${Number(group.month)}월</text>`; }).join("")}
+        </svg>`;
+      }
+
+      function renderGroupedMonthlyComparison(id, groups) {
+        const target = el(id);
+        if (!target) return;
+        if (!groups.length) {
+          target.innerHTML = `<div class="empty">월을 선택하면 금액 비교가 표시됩니다.</div>`;
+          return;
+        }
+        const max = Math.max(1, ...groups.flatMap((group) => [group.goal, group.forecast, group.result]));
+        target.innerHTML = `<div class="chart-legend"><span><i class="legend-mark" style="background:#d09a24"></i>목표</span><span><i class="legend-mark" style="background:#1769aa"></i>예측</span><span><i class="legend-mark" style="background:#078260"></i>실적</span></div><div class="grouped-chart-scroll"><div class="grouped-chart">${groups.map((group) => `<div class="grouped-month"><div class="grouped-bars"><span class="grouped-bar" title="목표 ${fmt(group.goal)}" style="height:${Math.max(2, group.goal / max * 100)}%;background:#d09a24"></span><span class="grouped-bar" title="예측 ${fmt(group.forecast)}" style="height:${Math.max(2, group.forecast / max * 100)}%;background:#1769aa"></span><span class="grouped-bar" title="실적 ${fmt(group.result)}" style="height:${Math.max(2, group.result / max * 100)}%;background:#078260"></span></div><div class="grouped-label">${Number(group.month)}월</div></div>`).join("")}</div></div>`;
+      }
+
+      function renderMonthlyVariance(id, groups, baselineMap) {
+        const target = el(id);
+        if (!target) return;
+        if (!groups.length) {
+          target.innerHTML = `<div class="empty">월을 선택하면 증감 분석이 표시됩니다.</div>`;
+          return;
+        }
+        const values = groups.map((group) => {
+          const previous = previousYearMonth(group.year, group.month);
+          const previousGroup = baselineMap.get(`${previous.year}|${previous.month}`);
+          const previousResult = previousGroup ? previousGroup.result : group.beforeResult;
+          return { group, goalVariance: group.result - group.goal, monthVariance: group.result - previousResult };
+        });
+        const max = Math.max(1, ...values.flatMap((item) => [Math.abs(item.goalVariance), Math.abs(item.monthVariance)]));
+        target.innerHTML = `<div class="variance-list">${values.map((item) => `<div class="variance-row"><b>${Number(item.group.month)}월</b><div style="display:grid;gap:5px"><div class="variance-track" title="목표 대비"><div class="variance-fill${item.goalVariance < 0 ? " negative" : ""}" style="width:${Math.max(2, Math.abs(item.goalVariance) / max * 100)}%"></div></div><div class="variance-track" title="전월 대비"><div class="variance-fill${item.monthVariance < 0 ? " negative" : ""}" style="width:${Math.max(2, Math.abs(item.monthVariance) / max * 100)}%;opacity:.65"></div></div></div><div class="variance-values"><span class="${item.goalVariance < 0 ? "negative-value" : ""}">목표 ${fmt(item.goalVariance)}</span><span class="${item.monthVariance < 0 ? "negative-value" : ""}">전월 ${fmt(item.monthVariance)}</span></div></div>`).join("")}</div>`;
+      }
+
+      function renderMonthlyPerformance(list, baselineList, sum) {
+        const groups = periodGroups(list);
+        const baseline = new Map(periodGroups(baselineList).map((group) => [group.key, group]));
+        el("mt-goal").textContent = fmt(sum.goal);
+        el("mt-result").textContent = fmt(sum.result);
+        el("mt-rate").textContent = pct(sum.goal ? sum.result / sum.goal * 100 : 0);
+        renderGroupedMonthlyComparison("monthly-comparison-chart", groups);
+        renderMonthlyVariance("monthly-variance-chart", groups, baseline);
+        el("monthly-summary-table").innerHTML = groups.length ? groups.map((group) => {
+          const previous = previousYearMonth(group.year, group.month);
+          const previousGroup = baseline.get(`${previous.year}|${previous.month}`);
+          const previousResult = previousGroup ? previousGroup.result : group.beforeResult;
+          const gap = group.result - group.goal;
+          return `<tr><td>${group.year}</td><td>${Number(group.month)}월</td><td>${fmt(group.goal)}</td><td>${fmt(group.forecast)}</td><td>${fmt(group.result)}</td><td>${fmt(gap)}</td><td>${fmt(group.result - previousResult)}</td><td>${pct(group.goal ? group.result / group.goal * 100 : 0)}</td></tr>`;
+        }).join("") : emptyRow(8);
+      }
+
+      function renderRiskAnalysis(list) {
+        const customers = groupBy(list, "customer").filter((group) => group.goal > 0);
+        const risk = customers.filter((group) => group.result < group.goal).sort((a, b) => (b.goal - b.result) - (a.goal - a.result));
+        const achieved = customers.filter((group) => group.result >= group.goal);
+        el("risk-customer-count").textContent = fmt(risk.length);
+        el("risk-shortfall").textContent = fmt(risk.reduce((sum, group) => sum + (group.goal - group.result), 0));
+        el("risk-achieved-count").textContent = fmt(achieved.length);
+        renderGroupBars("risk-bars", risk, (group) => group.goal - group.result, { limit: 10 });
+        el("risk-table").innerHTML = customers.sort((a, b) => (b.goal - b.result) - (a.goal - a.result)).map((group) => {
+          const row = group.items[0] || {};
+          const variance = group.result - group.goal;
+          return `<tr><td>${esc(group.name)}</td><td>${esc(row.category || "미분류")}</td><td>${esc(row.manager || "미지정")}</td><td>${fmt(group.goal)}</td><td>${fmt(group.result)}</td><td>${fmt(variance)}</td><td>${pct(group.goal ? group.result / group.goal * 100 : 0)}</td></tr>`;
+        }).join("") || emptyRow(7);
+      }
+
+      function renderPortfolioAnalysis(list) {
+        const customers = groupBy(list, "customer").filter((group) => group.result > 0).sort((a, b) => b.result - a.result);
+        const categories = groupBy(list, "category").filter((group) => group.result > 0).sort((a, b) => b.result - a.result);
+        const managers = groupBy(list, "manager").filter((group) => group.result > 0);
+        const totalResult = customers.reduce((sum, group) => sum + group.result, 0);
+        const topTen = customers.slice(0, 10).reduce((sum, group) => sum + group.result, 0);
+        el("portfolio-customers").textContent = fmt(customers.length);
+        el("portfolio-top-share").textContent = pct(totalResult ? topTen / totalResult * 100 : 0);
+        el("portfolio-categories").textContent = fmt(categories.length);
+        renderDonutChart("portfolio-category-chart", categories, (group) => group.result);
+        renderGroupBars("portfolio-manager-bars", managers, (group) => group.result, { limit: 10 });
+        el("portfolio-category-table").innerHTML = categories.map((group) => `<tr><td>${esc(group.name)}</td><td>${fmt(group.customers.size)}</td><td>${fmt(group.goal)}</td><td>${fmt(group.forecast)}</td><td>${fmt(group.result)}</td><td>${pct(totalResult ? group.result / totalResult * 100 : 0)}</td></tr>`).join("") || emptyRow(6);
+      }
+
+      function renderDataQuality() {
+        const items = currentCustomerMaster();
+        const ownerIssues = items.filter((item) => !item.owner || /^(TPL[123]팀|운송팀|신규|기타)$/i.test(item.owner));
+        const categoryIssues = items.filter((item) => item.category === "물류·기타");
+        const reviews = items.map((item) => {
+          const issues = [];
+          if (!item.owner) issues.push("담당자 미지정");
+          else if (/^(TPL[123]팀|운송팀|신규|기타)$/i.test(item.owner)) issues.push("담당자 확인");
+          if (!item.team) issues.push("팀 미지정");
+          if (item.category === "물류·기타") issues.push("카테고리 검토");
+          return { ...item, issues };
+        }).filter((item) => item.issues.length);
+        el("quality-total").textContent = fmt(items.length);
+        el("quality-owner").textContent = fmt(ownerIssues.length);
+        el("quality-category").textContent = fmt(categoryIssues.length);
+        el("quality-table").innerHTML = reviews.map((item) => `<tr><td>${esc(item.customer)}</td><td>${esc(item.category)}</td><td>${esc(item.owner || "미지정")}</td><td>${esc(item.team || "미지정")}</td><td>${esc(item.issues.join(" · "))}</td></tr>`).join("") || `<tr><td colspan="5">점검이 필요한 거래처가 없습니다.</td></tr>`;
+      }
+
+      function loadPlanningDrafts() {
+        try {
+          const forecast = JSON.parse(localStorage.getItem("hanexNextMonthForecast_v1") || "null");
+          if (forecast) { state.forecastDraft = forecast.rows || []; state.forecastMeta = forecast.meta || null; }
+        } catch (error) { console.error(error); }
+        try {
+          const plan = JSON.parse(localStorage.getItem("hanexBusinessPlan_v1") || "null");
+          if (plan) { state.businessPlanDraft = plan.rows || []; state.businessPlanMeta = plan.meta || null; }
+        } catch (error) { console.error(error); }
+      }
+
+      function refreshPlanningYears() {
+        const select = el("plan-source-year");
+        if (!select) return;
+        const current = select.value;
+        const years = unique(state.rows.map((row) => row.year).filter((year) => /^\d{4}$/.test(year))).sort();
+        select.innerHTML = years.map((year) => opt(year, year)).join("") || opt(new Date().getFullYear(), new Date().getFullYear());
+        select.value = years.includes(current) ? current : (years[years.length - 1] || String(new Date().getFullYear()));
+        syncPlanTargetYear();
+      }
+
+      function syncPlanTargetYear() {
+        const sourceYear = Number(el("plan-source-year")?.value || new Date().getFullYear());
+        if (el("plan-target-year")) el("plan-target-year").value = String(sourceYear + 1);
+      }
+
+      function selectedForecastPeriod() {
+        if (!state.analysis.allMonths && !state.analysis.months.length) return null;
+        const rows = analysisRows(true);
+        let periods = unique(rows.map((row) => `${row.year}|${row.month}`).filter((period) => /^\d{4}\|(0[1-9]|1[0-2])$/.test(period))).sort();
+        if (!state.analysis.allMonths) periods = periods.filter((period) => state.analysis.months.includes(period.split("|")[1]));
+        if (state.analysis.year) periods = periods.filter((period) => period.startsWith(`${state.analysis.year}|`));
+        const key = periods[periods.length - 1];
+        return key ? { key, year: key.split("|")[0], month: key.split("|")[1] } : null;
+      }
+
+      function nextPeriod(year, month) {
+        return Number(month) === 12
+          ? { year: String(Number(year) + 1), month: "01" }
+          : { year, month: String(Number(month) + 1).padStart(2, "0") };
+      }
+
+      function periodSerial(year, month) { return Number(year) * 12 + Number(month) - 1; }
+
+      function generateForecastDraft() {
+        const source = selectedForecastPeriod();
+        if (!source) {
+          alert("분석 슬라이서에서 기준월을 하나 이상 선택해주세요.");
+          return;
+        }
+        const target = nextPeriod(source.year, source.month);
+        const allRows = analysisRows(true);
+        const sourceRows = allRows.filter((row) => row.year === source.year && row.month === source.month);
+        if (!sourceRows.length) { alert("선택한 기준월 데이터가 없습니다."); return; }
+        const sourceSerial = periodSerial(source.year, source.month);
+        const recentRows = allRows.filter((row) => { const serial = periodSerial(row.year, row.month); return serial >= sourceSerial - 2 && serial <= sourceSerial; });
+        const availableMonths = Math.max(1, unique(recentRows.map((row) => `${row.year}|${row.month}`)).length);
+        const method = el("forecast-method").value;
+        const adjustment = number(el("forecast-adjustment").value) / 100;
+        const map = new Map();
+        sourceRows.forEach((row) => {
+          const key = `${row.customer}|${row.center}|${row.account}`;
+          if (!map.has(key)) map.set(key, { key, customer: row.customer, category: row.category, center: row.center, account: row.account, sourceActual: 0 });
+          map.get(key).sourceActual += row.result;
+        });
+        const recentTotals = new Map();
+        recentRows.forEach((row) => { const key = `${row.customer}|${row.center}|${row.account}`; recentTotals.set(key, (recentTotals.get(key) || 0) + row.result); });
+        const previous = previousYearMonth(source.year, source.month);
+        const previousTotals = new Map();
+        allRows.filter((row) => row.year === previous.year && row.month === previous.month).forEach((row) => { const key = `${row.customer}|${row.center}|${row.account}`; previousTotals.set(key, (previousTotals.get(key) || 0) + row.result); });
+        state.forecastDraft = [...map.values()].map((item) => {
+          const average3 = (recentTotals.get(item.key) || 0) / availableMonths;
+          const trendValue = Math.max(0, item.sourceActual + (item.sourceActual - (previousTotals.get(item.key) || item.sourceActual)));
+          const base = method === "latest" ? item.sourceActual : method === "trend" ? trendValue : average3;
+          const suggested = Math.round(base * (1 + adjustment));
+          return { ...item, average3: Math.round(average3), suggested, finalForecast: suggested, sourceKey: source.key, targetYear: target.year, targetMonth: target.month };
+        }).sort((a, b) => b.finalForecast - a.finalForecast);
+        state.forecastMeta = { source, target, method, adjustment: adjustment * 100 };
+        renderForecastDraft();
+      }
+
+      function renderForecastDraft() {
+        const source = selectedForecastPeriod();
+        const target = source ? nextPeriod(source.year, source.month) : null;
+        el("forecast-source-period").value = source ? `${source.year}년 ${Number(source.month)}월` : "월을 선택해주세요";
+        el("forecast-target-period").value = target ? `${target.year}년 ${Number(target.month)}월` : "-";
+        const rows = source && state.forecastMeta?.source?.key === source.key ? state.forecastDraft : [];
+        el("nf-source-total").textContent = fmt(rows.reduce((sum, row) => sum + row.sourceActual, 0));
+        el("nf-suggested-total").textContent = fmt(rows.reduce((sum, row) => sum + row.suggested, 0));
+        el("nf-final-total").textContent = fmt(rows.reduce((sum, row) => sum + row.finalForecast, 0));
+        el("next-forecast-table").innerHTML = rows.length ? rows.map((row, index) => `<tr><td>${esc(row.customer)}</td><td>${esc(row.category)}</td><td>${esc(row.center)}</td><td>${esc(row.account)}</td><td>${fmt(row.sourceActual)}</td><td>${fmt(row.average3)}</td><td>${fmt(row.suggested)}</td><td><input class="editable-number forecast-final-input" data-index="${index}" type="number" value="${Math.round(row.finalForecast)}"></td></tr>`).join("") : emptyRow(8);
+      }
+
+      function updateForecastDraftValue(event) {
+        const input = event.target.closest(".forecast-final-input");
+        if (!input) return;
+        const index = Number(input.dataset.index);
+        if (state.forecastDraft[index]) state.forecastDraft[index].finalForecast = number(input.value);
+        el("nf-final-total").textContent = fmt(state.forecastDraft.reduce((sum, row) => sum + row.finalForecast, 0));
+      }
+
+      function saveForecastDraft() {
+        if (!state.forecastDraft.length) { alert("먼저 예측 초안을 생성해주세요."); return; }
+        localStorage.setItem("hanexNextMonthForecast_v1", JSON.stringify({ meta: state.forecastMeta, rows: state.forecastDraft, savedAt: new Date().toISOString() }));
+        alert("익월 매출 예측안을 저장했습니다.");
+      }
+
+      function downloadForecastDraft() {
+        if (!state.forecastDraft.length || !window.XLSX) { alert("다운로드할 예측안이 없습니다."); return; }
+        const data = state.forecastDraft.map((row) => ({ 예측연도: row.targetYear, 예측월: row.targetMonth, 고객사: row.customer, 사업카테고리: row.category, 센터: row.center, 계정: row.account, 기준월실적: row.sourceActual, 최근3개월평균: row.average3, 추천예측: row.suggested, 최종예측: row.finalForecast }));
+        const sheet = XLSX.utils.json_to_sheet(data);
+        const workbook = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(workbook, sheet, "익월 매출 예측");
+        XLSX.writeFile(workbook, `익월_매출예측_${state.forecastMeta.target.year}${state.forecastMeta.target.month}.xlsx`);
+      }
+
+      function prepareForecastForHelios() {
+        if (!state.forecastDraft.length) { alert("먼저 예측 초안을 생성해주세요."); return; }
+        const total = state.forecastDraft.reduce((sum, row) => sum + row.finalForecast, 0);
+        alert(`HELIOS 입력 준비가 완료되었습니다.\n대상: ${state.forecastMeta.target.year}년 ${Number(state.forecastMeta.target.month)}월\n입력 행: ${fmt(state.forecastDraft.length)}건\n최종 예측: ${fmt(total)}\n\n다음 단계에서 HELIOS 행별 입력 자동화를 연결합니다.`);
+      }
+
+      function generateBusinessPlanDraft() {
+        const sourceYear = el("plan-source-year").value;
+        const targetYear = String(Number(sourceYear) + 1);
+        const growth = number(el("plan-growth").value) / 100;
+        const rows = analysisRows(true).filter((row) => row.year === sourceYear);
+        if (!rows.length) { alert("기준연도 데이터가 없습니다."); return; }
+        const map = new Map();
+        rows.forEach((row) => {
+          const key = `${row.customer}|${row.account}`;
+          if (!map.has(key)) map.set(key, { key, customer: row.customer, account: row.account, category: row.category, actual: Array(12).fill(0) });
+          map.get(key).actual[Number(row.month) - 1] += row.result || row.forecast;
+        });
+        state.businessPlanDraft = [...map.values()].map((item) => {
+          const positive = item.actual.filter((value) => value > 0);
+          const fallback = positive.length ? positive.reduce((sum, value) => sum + value, 0) / positive.length : 0;
+          const months = item.actual.map((value) => Math.round((value || fallback) * (1 + growth)));
+          return { ...item, months, annualTotal: months.reduce((sum, value) => sum + value, 0), sourceYear, targetYear };
+        }).sort((a, b) => b.annualTotal - a.annualTotal);
+        state.businessPlanMeta = { sourceYear, targetYear, growth: growth * 100 };
+        renderBusinessPlanDraft();
+      }
+
+      function renderBusinessPlanDraft() {
+        syncPlanTargetYear();
+        const sourceYear = el("plan-source-year")?.value || "";
+        const rows = state.businessPlanMeta?.sourceYear === sourceYear ? state.businessPlanDraft : [];
+        const sourceRows = analysisRows(true).filter((row) => row.year === sourceYear);
+        const sourceTotal = sourceRows.reduce((sum, row) => sum + row.result, 0);
+        const planTotal = rows.reduce((sum, row) => sum + row.annualTotal, 0);
+        el("bp-source-total").textContent = fmt(sourceTotal);
+        el("bp-plan-total").textContent = fmt(planTotal);
+        el("bp-growth-rate").textContent = pct(sourceTotal ? (planTotal / sourceTotal - 1) * 100 : 0);
+        renderBusinessPlanChart(sourceRows, rows);
+        el("business-plan-table").innerHTML = rows.length ? rows.map((row, rowIndex) => `<tr><td>${esc(row.customer)}</td><td>${esc(row.account)}</td>${row.months.map((value, monthIndex) => `<td><input class="editable-number plan-month-input" data-row="${rowIndex}" data-month="${monthIndex}" type="number" value="${Math.round(value)}"></td>`).join("")}<td><b>${fmt(row.annualTotal)}</b></td></tr>`).join("") : emptyRow(15);
+      }
+
+      function renderBusinessPlanChart(sourceRows, planRows) {
+        const actual = Array(12).fill(0), plan = Array(12).fill(0);
+        sourceRows.forEach((row) => { const index = Number(row.month) - 1; if (index >= 0 && index < 12) actual[index] += row.result; });
+        planRows.forEach((row) => row.months.forEach((value, index) => { plan[index] += value; }));
+        const max = Math.max(1, ...actual, ...plan);
+        el("business-plan-chart").innerHTML = `<div class="chart-legend"><span><i class="legend-mark" style="background:#078260"></i>기준실적</span><span><i class="legend-mark" style="background:#1769aa"></i>계획목표</span></div><div class="grouped-chart-scroll"><div class="grouped-chart">${actual.map((value, index) => `<div class="grouped-month"><div class="grouped-bars"><span class="grouped-bar" title="기준실적 ${fmt(value)}" style="height:${Math.max(2, value / max * 100)}%;background:#078260"></span><span class="grouped-bar" title="계획목표 ${fmt(plan[index])}" style="height:${Math.max(2, plan[index] / max * 100)}%;background:#1769aa"></span></div><div class="grouped-label">${index + 1}월</div></div>`).join("")}</div></div>`;
+      }
+
+      function updateBusinessPlanValue(event) {
+        const input = event.target.closest(".plan-month-input");
+        if (!input) return;
+        const row = state.businessPlanDraft[Number(input.dataset.row)];
+        if (!row) return;
+        row.months[Number(input.dataset.month)] = number(input.value);
+        row.annualTotal = row.months.reduce((sum, value) => sum + value, 0);
+        renderBusinessPlanDraft();
+      }
+
+      function saveBusinessPlanDraft() {
+        if (!state.businessPlanDraft.length) { alert("먼저 사업계획 초안을 생성해주세요."); return; }
+        localStorage.setItem("hanexBusinessPlan_v1", JSON.stringify({ meta: state.businessPlanMeta, rows: state.businessPlanDraft, savedAt: new Date().toISOString() }));
+        alert("연간 사업계획 초안을 저장했습니다.");
+      }
+
+      function downloadBusinessPlanDraft() {
+        if (!state.businessPlanDraft.length || !window.XLSX) { alert("다운로드할 사업계획이 없습니다."); return; }
+        const data = state.businessPlanDraft.map((row) => ({ 계획연도: row.targetYear, 고객사: row.customer, 사업카테고리: row.category, 계정: row.account, ...Object.fromEntries(row.months.map((value, index) => [`${index + 1}월`, value])), 연간합계: row.annualTotal }));
+        const sheet = XLSX.utils.json_to_sheet(data); const workbook = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(workbook, sheet, "연간 사업계획");
+        XLSX.writeFile(workbook, `연간_사업계획_${state.businessPlanMeta.targetYear}.xlsx`);
+      }
+
+      function renderAnalysisVisuals(list, sum) {
+        const industries = groupBy(list, "customer");
+        const centers = groupBy(list, "center");
+        const accounts = groupBy(list, "account");
+
+        const industryByResult = [...industries].sort((a, b) => b.result - a.result);
+        const centerByResult = [...centers].sort((a, b) => b.result - a.result);
+        const accountByResult = [...accounts].sort((a, b) => b.result - a.result);
+        const industryByExpected = [...industries].sort((a, b) => expected(b) - expected(a));
+        const accountByExpected = [...accounts].sort((a, b) => expected(b) - expected(a));
+
+        const topIndustry = industryByResult[0];
+        el("pi-total").textContent = fmt(sum.result);
+        el("pi-top").textContent = topIndustry?.name || "-";
+        el("pi-top-value").textContent = fmt(topIndustry?.result || 0);
+        el("pi-risk").textContent = fmt(industries.filter((g) => expected(g) < g.goal).length);
+        renderGroupBars("pi-bars", industries, (g) => g.result, { limit: 10 });
+
+        const topCenter = centerByResult[0];
+        el("pc-total").textContent = fmt(sum.result);
+        el("pc-top").textContent = topCenter?.name || "-";
+        el("pc-top-value").textContent = fmt(topCenter?.result || 0);
+        el("pc-mom").textContent = fmt(sum.result - sum.beforeResult);
+        renderColumnChart("pc-bars", centers, (g) => g.result, { limit: 10 });
+        renderMonthlyTrend("pc-monthly-trend", list);
+        renderGroupBars("pc-customer-bars", groupBy(list, "customer"), (g) => g.result, { limit: 10 });
+
+        const topAccount = accountByResult[0];
+        const topFiveResult = accountByResult.slice(0, 5).reduce((acc, g) => acc + g.result, 0);
+        el("pe-count").textContent = fmt(accounts.length);
+        el("pe-top").textContent = topAccount?.name || "-";
+        el("pe-top-value").textContent = fmt(topAccount?.result || 0);
+        el("pe-share").textContent = pct(sum.result ? topFiveResult / sum.result * 100 : 0);
+        renderGroupBars("pe-bars", accounts, (g) => g.result);
+
+        const totalExpected = expected(sum);
+        const industryShortfall = industries.reduce((acc, g) => acc + Math.max(0, g.goal - expected(g)), 0);
+        el("fi-total").textContent = fmt(totalExpected);
+        el("fi-shortfall").textContent = fmt(industryShortfall);
+        el("fi-achieved").textContent = fmt(industries.filter((g) => expected(g) >= g.goal).length);
+        renderColumnChart("fi-bars", industryByExpected, (g) => expected(g), { limit: 10 });
+
+        renderColumnChart("fc-bars", centers, (g) => expected(g), { limit: 10 });
+
+        const topExpectedAccount = accountByExpected[0];
+        el("fe-total").textContent = fmt(totalExpected);
+        el("fe-top").textContent = topExpectedAccount?.name || "-";
+        el("fe-top-value").textContent = fmt(topExpectedAccount ? expected(topExpectedAccount) : 0);
+        el("fe-risk").textContent = fmt(accounts.filter((g) => expected(g) < g.goal).length);
+        renderGroupBars("fe-bars", accountByExpected, (g) => expected(g));
+
+        renderGroupBars("compare-bars", centers, (g) => expected(g) - g.goal, { absolute: true });
+      }
+
+      function renderSummary(sum) {
+        const exp = expected(sum);
+        const gap = exp - sum.goal;
+        const mom = exp - sum.beforeResult;
+        el("summary-table").innerHTML = [
+          ["예상 매출", "예측 + 추정 + 실적", fmt(exp)],
+          ["목표 대비", "예상 매출 - 목표", fmt(gap)],
+          ["목표 달성률", "예상 매출 ÷ 목표", pct(sum.goal ? exp / sum.goal * 100 : 0)],
+          ["전월 실적", "RESULT_BEFORE_MONTH", fmt(sum.beforeResult)],
+          ["전월 대비", "예상 매출 - 전월 실적", fmt(mom)]
+        ].map((r) => `<tr><td>${r[0]}</td><td>${r[1]}</td><td><b>${r[2]}</b></td></tr>`).join("");
+      }
+
+      function renderTables(list, analysisList) {
+        const teams = groupBy(list, "team").sort((a, b) => metricValue(b) - metricValue(a));
+        const accounts = groupBy(list, "account").sort((a, b) => b.forecast + b.guess + b.result - (a.forecast + a.guess + a.result));
+        const centers = groupBy(analysisList, "center").sort((a, b) => b.result - a.result);
+        const analysisAccounts = groupBy(analysisList, "account").sort((a, b) => b.forecast + b.guess + b.result - (a.forecast + a.guess + a.result));
+        el("team-table").innerHTML = teams.slice(0, 12).map(teamRow).join("") || emptyRow(7);
+        el("team-detail-table").innerHTML = centers.map((g) => {
+          const gap = expected(g) - g.goal;
+          return `<tr><td>${esc(g.name)}</td><td>${fmt(g.accounts.size)}</td><td>${fmt(g.customers.size)}</td><td>${fmt(g.goal)}</td><td>${fmt(g.forecast)}</td><td>${fmt(g.guess)}</td><td>${fmt(g.result)}</td><td>${fmt(g.beforeResult)}</td><td>${fmt(gap)}</td></tr>`;
+        }).join("") || emptyRow(9);
+        el("account-table").innerHTML = accounts.slice(0, 12).map((g) => `<tr><td>${esc(g.name)}</td><td>${fmt(g.items.length)}</td><td>${fmt(g.goal)}</td><td>${fmt(g.forecast)}</td><td>${fmt(g.guess)}</td><td>${fmt(g.result)}</td></tr>`).join("") || emptyRow(6);
+        el("account-detail-table").innerHTML = analysisAccounts.map((g) => {
+          const code = g.items[0]?.acctCode || "";
+          const gap = expected(g) - g.goal;
+          return `<tr><td>${esc(g.name)}</td><td>${esc(code)}</td><td>${fmt(g.items.length)}</td><td>${fmt(g.goal)}</td><td>${fmt(g.forecast)}</td><td>${fmt(g.guess)}</td><td>${fmt(g.result)}</td><td>${fmt(gap)}</td></tr>`;
+        }).join("") || emptyRow(8);
+      }
+
+      function teamRow(g) {
+        const rate = g.goal ? expected(g) / g.goal * 100 : 0;
+        const status = rate >= 100 ? "green" : rate >= 80 ? "" : "red";
+        return `<tr><td>${esc(g.name)}</td><td>${fmt(g.items.length)}</td><td>${fmt(g.goal)}</td><td>${fmt(g.forecast)}</td><td>${fmt(g.guess)}</td><td>${fmt(g.result)}</td><td><span class="status ${status}">${pct(rate)}</span></td></tr>`;
+      }
+
+      function renderForecast(list, sum) {
+        const exp = expected(sum);
+        el("forecast-total").textContent = fmt(exp);
+        el("goal-gap").textContent = fmt(exp - sum.goal);
+        el("mom-gap").textContent = fmt(exp - sum.beforeResult);
+        const sorted = [...list].map((r) => ({ ...r, gap: r.forecast + r.guess + r.result - r.goal })).sort((a, b) => Math.abs(b.gap) - Math.abs(a.gap)).slice(0, 24);
+        el("forecast-table").innerHTML = sorted.map((r) => {
+          const status = r.gap >= 0 ? ["green", "양호"] : ["red", "점검"];
+          return `<tr><td>${esc(r.center)}</td><td>${esc(r.account)}</td><td>${esc(r.customer)}</td><td>${fmt(r.goal)}</td><td>${fmt(r.forecast)}</td><td>${fmt(r.guess)}</td><td>${fmt(r.result)}</td><td>${fmt(r.gap)}</td><td><span class="status ${status[0]}">${status[1]}</span></td></tr>`;
+        }).join("") || emptyRow(9);
+      }
+
+      function customerMonthGroups(list) {
+        const groups = new Map();
+        list.forEach((row) => {
+          if (!/^\d{4}$/.test(row.year) || !/^\d{2}$/.test(row.month)) return;
+          const key = `${row.year}|${row.month}|${row.customer}`;
+          if (!groups.has(key)) groups.set(key, { year: row.year, month: row.month, customer: row.customer, items: [] });
+          groups.get(key).items.push(row);
+        });
+        return [...groups.values()].map((group) => ({ ...group, ...total(group.items) }));
+      }
+
+      function previousYearMonth(year, month) {
+        const value = Number(month);
+        return value > 1
+          ? { year, month: String(value - 1).padStart(2, "0") }
+          : { year: String(Number(year) - 1), month: "12" };
+      }
+
+      function customerMonthlyModel(list, baselineList) {
+        const groups = customerMonthGroups(list);
+        const baseline = customerMonthGroups(baselineList);
+        const baselineMap = new Map(baseline.map((group) => [`${group.year}|${group.month}|${group.customer}`, group]));
+        const periods = unique(groups.map((group) => `${group.year}|${group.month}`)).sort();
+        const years = unique(periods.map((period) => period.split("|")[0]));
+        const customerTotals = new Map();
+        groups.forEach((group) => customerTotals.set(group.customer, (customerTotals.get(group.customer) || 0) + group.result));
+        const customers = unique(groups.map((group) => group.customer)).sort((a, b) => {
+          return (customerTotals.get(b) || 0) - (customerTotals.get(a) || 0);
+        });
+        const groupMap = new Map(groups.map((group) => [`${group.year}|${group.month}|${group.customer}`, group]));
+        const measures = ["목표(A)", "예측(B)", "실적(C)", "목표비(A-C)", "예측비(B-C)", "전월비"];
+        return { baselineMap, periods, years, customers, groupMap, measures };
+      }
+
+      function monthlyMeasureValues(model, customer, period) {
+        const [year, month] = period.split("|");
+        const group = model.groupMap.get(`${period}|${customer}`);
+        if (!group) return null;
+        const previous = previousYearMonth(year, month);
+        const previousGroup = model.baselineMap.get(`${previous.year}|${previous.month}|${customer}`);
+        const previousResult = previousGroup ? previousGroup.result : group.beforeResult;
+        return [group.goal, group.forecast, group.result, group.goal - group.result, group.forecast - group.result, group.result - previousResult];
+      }
+
+      function renderCustomerMonthlyAnalysis(list, baselineList) {
+        const model = customerMonthlyModel(list, baselineList);
+        const { periods, years, customers, measures } = model;
+        el("customer-month-head").innerHTML = periods.length ? `<tr>
+          <th class="pivot-customer" rowspan="2">고객사</th>
+          ${periods.map((period) => {
+            const [year, month] = period.split("|");
+            const label = years.length > 1 ? `${year}년 ${Number(month)}월` : `${Number(month)}월`;
+            return `<th class="pivot-period" colspan="6">${label}</th>`;
+          }).join("")}
+        </tr><tr>${periods.map(() => measures.map((measure, index) => `<th class="${index === 0 ? "period-start" : ""}">${measure}</th>`).join("")).join("")}</tr>` : "";
+        el("customer-month-cols").innerHTML = `<col style="width:260px">${periods.map(() => Array.from({ length: 6 }, () => `<col style="width:120px">`).join("")).join("")}`;
+        const tableWidth = 260 + periods.length * 720;
+        el("customer-month-pivot").style.width = `${tableWidth}px`;
+        el("customer-month-pivot").style.minWidth = `${tableWidth}px`;
+        el("customer-month-pivot").style.maxWidth = `${tableWidth}px`;
+        el("customer-month-table").innerHTML = customers.length ? customers.map((customer) => {
+          const cells = periods.map((period) => {
+            const values = monthlyMeasureValues(model, customer, period);
+            if (!values) return `<td class="period-start">-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td>`;
+            return values.map((value, index) => `<td class="${index === 0 ? "period-start" : ""}">${fmt(value)}</td>`).join("");
+          }).join("");
+          return `<tr><td class="pivot-customer">${esc(customer)}</td>${cells}</tr>`;
+        }).join("") : `<tr><td class="pivot-customer">반영된 데이터가 없습니다.</td></tr>`;
+      }
+
+      function downloadCustomerMonthlyExcel() {
+        if (!window.XLSX) {
+          alert("엑셀 처리 모듈을 불러오지 못했습니다. 인터넷 연결 후 다시 시도해주세요.");
+          return;
+        }
+        const model = customerMonthlyModel(analysisRows(), analysisRows(true));
+        if (!model.periods.length || !model.customers.length) {
+          alert("다운로드할 고객사 월별 데이터가 없습니다.");
+          return;
+        }
+        const header1 = ["고객사"];
+        const header2 = [""];
+        model.periods.forEach((period) => {
+          const [year, month] = period.split("|");
+          header1.push(`${year}년 ${Number(month)}월`, "", "", "", "", "");
+          header2.push(...model.measures);
+        });
+        const rows = model.customers.map((customer) => {
+          const row = [customer];
+          model.periods.forEach((period) => row.push(...(monthlyMeasureValues(model, customer, period) || ["", "", "", "", "", ""])));
+          return row;
+        });
+        const sheet = XLSX.utils.aoa_to_sheet([header1, header2, ...rows]);
+        sheet["!cols"] = [{ wch: 36 }, ...Array(model.periods.length * 6).fill(null).map(() => ({ wch: 15 }))];
+        sheet["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 1, c: 0 } }, ...model.periods.map((_, index) => ({ s: { r: 0, c: 1 + index * 6 }, e: { r: 0, c: 6 + index * 6 } }))];
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, sheet, "고객사 월별 비교");
+        const yearLabel = state.analysis.year || "전체연도";
+        const monthLabel = state.analysis.months.length ? state.analysis.months.join("-") + "월" : "전체월";
+        XLSX.writeFile(workbook, `고객사_월별_목표예측실적_${yearLabel}_${monthLabel}.xlsx`);
+      }
+
+      function renderForecastBreakdowns(list) {
+        const industries = groupBy(list, "customer").sort((a, b) => expected(b) - expected(a));
+        el("forecast-industry-table").innerHTML = industries.map((g) => forecastGroupRow(g, g.name, 9)).join("") || emptyRow(9);
+        const accounts = groupBy(list, "account").sort((a, b) => Math.abs(expected(b) - b.goal) - Math.abs(expected(a) - a.goal));
+        el("forecast-account-table").innerHTML = accounts.map((g) => {
+          const exp = expected(g);
+          const gap = exp - g.goal;
+          return `<tr><td>${esc(g.name)}</td><td>${fmt(g.items.length)}</td><td>${fmt(g.goal)}</td><td>${fmt(g.forecast)}</td><td>${fmt(g.guess)}</td><td>${fmt(g.result)}</td><td>${fmt(exp)}</td><td>${fmt(gap)}</td></tr>`;
+        }).join("") || emptyRow(8);
+      }
+
+      function forecastGroupRow(g) {
+        const exp = expected(g);
+        const gap = exp - g.goal;
+        const status = gap >= 0 ? ["green", "양호"] : ["red", "점검"];
+        return `<tr><td>${esc(g.name)}</td><td>${fmt(g.items.length)}</td><td>${fmt(g.goal)}</td><td>${fmt(g.forecast)}</td><td>${fmt(g.guess)}</td><td>${fmt(g.result)}</td><td>${fmt(exp)}</td><td>${fmt(gap)}</td><td><span class="status ${status[0]}">${status[1]}</span></td></tr>`;
+      }
+
+      function renderCompare(list, sum) {
+        const exp = expected(sum);
+        const goalGap = exp - sum.goal;
+        const beforeGap = exp - sum.beforeResult;
+        el("compare-goal-gap").textContent = fmt(goalGap);
+        el("compare-before-gap").textContent = fmt(beforeGap);
+        el("compare-rate").textContent = pct(sum.goal ? exp / sum.goal * 100 : 0);
+        const centers = groupBy(list, "center").sort((a, b) => Math.abs((expected(b) - b.goal)) - Math.abs((expected(a) - a.goal)));
+        el("compare-table").innerHTML = centers.map((g) => {
+          const centerExp = expected(g);
+          const centerGoalGap = centerExp - g.goal;
+          const centerBeforeGap = centerExp - g.beforeResult;
+          const status = centerGoalGap >= 0 ? ["green", "목표 이상"] : ["red", "목표 미달"];
+          return `<tr><td>${esc(g.name)}</td><td>${fmt(g.goal)}</td><td>${fmt(centerExp)}</td><td>${fmt(g.result)}</td><td>${fmt(g.beforeResult)}</td><td>${fmt(centerGoalGap)}</td><td>${fmt(centerBeforeGap)}</td><td><span class="status ${status[0]}">${status[1]}</span></td></tr>`;
+        }).join("") || emptyRow(8);
+      }
+
+      function emptyRow(colspan) {
+        return `<tr><td colspan="${colspan}">반영된 데이터가 없습니다.</td></tr>`;
+      }
+
+      function historyItems() {
+        try { return JSON.parse(localStorage.getItem("hanexRevenueHistory") || "[]"); }
+        catch { return []; }
+      }
+
+      function setHistoryItems(items) {
+        localStorage.setItem("hanexRevenueHistory", JSON.stringify(items));
+      }
+
+      function saveHistory() {
+        const list = rows();
+        if (!list.length) {
+          alert("저장할 데이터가 없습니다. 먼저 HELIOS 다운로드를 실행해 데이터를 반영해주세요.");
+          return;
+        }
+        const sum = total(list);
+        const item = {
+          savedAt: new Date().toLocaleString("ko-KR"),
+          ym: el("source-menu").value === "salesOther" ? `${el("year-select").value} 기타` : `${el("year-select").value}-${el("month-select").value}`,
+          dept: el("dept-input").value || "61,62,63",
+          count: list.length,
+          goal: sum.goal,
+          forecast: sum.forecast,
+          guess: sum.guess,
+          result: sum.result,
+          gap: expected(sum) - sum.goal
+        };
+        setHistoryItems([item, ...historyItems()].slice(0, 60));
+        renderHistory();
+        alert("현재 실적/예측 집계 이력을 저장했습니다.");
+      }
+
+      function renderHistory() {
+        const items = historyItems();
+        el("history-table").innerHTML = items.length ? items.map((item) => {
+          const label = item.label || item.ym || item.savedAt || "저장 실적";
+          const oldYm = String(item.ym || "").match(/(20\d{2})[-./년\s]*(\d{1,2})?/);
+          const year = item.year || oldYm?.[1] || "-";
+          const month = String(item.month || oldYm?.[2] || "-").replace(/^0(?=\d$)/, "");
+          const goalGap = Number(item.goal || 0) - Number(item.result || 0);
+          const download = item.id
+            ? `<button class="btn" type="button" data-history-download="${esc(item.id)}">다운로드</button>`
+            : `<span class="status">원본 없음</span>`;
+          return `<tr><td>${esc(year)}</td><td>${esc(month)}</td><td>${esc(label)}</td><td>${fmt(item.goal)}</td><td>${fmt(item.forecast)}</td><td>${fmt(item.result)}</td><td>${fmt(goalGap)}</td><td>${download}</td></tr>`;
+        }).join("") : emptyRow(8);
+        colorNegativeValues();
+      }
+
+      async function clearHistory() {
+        if (!confirm("저장된 실적/예측 이력을 초기화할까요?")) return;
+        localStorage.removeItem("hanexRevenueHistory");
+        try {
+          await clearHistoryFileBlobs();
+          await clearCumulativeDataset();
+          state.rows = [];
+          refreshFilters();
+          refreshAnalysisSlicers();
+        } catch (error) { console.error(error); }
+        renderHistory();
+        render();
+      }
+
+      function downloadCsv() {
+        const list = rows();
+        if (!list.length) {
+          alert("다운로드할 데이터가 없습니다.");
+          return;
+        }
+        const header = ["SOURCE", "YEAR", "MONTH", "TEAM", "BUSINESS_TEAM", "CATEGORY", "MANAGER", "CUSTOMER", "ACCT_CODE", "ACCT_NAME", "GOAL", "FORECAST", "GUESS", "RESULT", "BEFORE_RESULT"];
+        const lines = [header.join(",")].concat(list.map((r) => [
+          r.source, r.year, r.month, r.team, r.businessTeam, r.category, r.manager, r.customer, r.acctCode, r.account, r.goal, r.forecast, r.guess, r.result, r.beforeResult
+        ].map(csvCell).join(",")));
+        const blob = new Blob(["\ufeff" + lines.join("\n")], { type: "text/csv;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `hanex_revenue_${el("year-select").value}${el("month-select").value}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+
+      function csvCell(value) {
+        const text = String(value ?? "");
+        return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+      }
+
+      init();
+    })();
+  </script>
+</body>
+</html>
