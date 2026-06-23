@@ -366,6 +366,7 @@
     .customer-suggestion:focus,
     .customer-suggestion.active {
       background: var(--soft);
+      box-shadow: inset 3px 0 var(--accent);
       outline: none;
     }
 
@@ -888,7 +889,7 @@
           <label class="control"><span>사업 카테고리</span><select class="input" id="analysis-category"></select></label>
           <label class="control"><span>담당자</span><select class="input" id="analysis-manager"></select></label>
           <label class="control"><span>센터</span><select class="input" id="analysis-center"></select></label>
-          <label class="control"><span>고객사 검색</span><div class="customer-search"><input class="input" id="analysis-customer" type="search" placeholder="고객사명을 입력하세요" autocomplete="off" aria-autocomplete="list" aria-controls="analysis-customer-suggestions"><div class="customer-suggestions" id="analysis-customer-suggestions" role="listbox" hidden></div></div></label>
+          <label class="control"><span>고객사 검색</span><div class="customer-search"><input class="input" id="analysis-customer" type="search" role="combobox" placeholder="고객사명을 입력하세요" autocomplete="off" aria-autocomplete="list" aria-controls="analysis-customer-suggestions" aria-expanded="false"><div class="customer-suggestions" id="analysis-customer-suggestions" role="listbox" hidden></div></div></label>
         </div>
         <div class="month-slicer" id="analysis-months" aria-label="월 선택"></div>
       </section>
@@ -1426,16 +1427,17 @@
           const suggestions = [...el("analysis-customer-suggestions").querySelectorAll("[data-customer-suggestion]")];
           if (event.key === "ArrowDown" && suggestions.length) {
             event.preventDefault();
-            setCustomerSuggestionIndex((state.customerSuggestionIndex + 1) % suggestions.length);
+            setCustomerSuggestionIndex((state.customerSuggestionIndex + 1) % suggestions.length, true, true);
           }
           if (event.key === "ArrowUp" && suggestions.length) {
             event.preventDefault();
-            setCustomerSuggestionIndex(state.customerSuggestionIndex <= 0 ? suggestions.length - 1 : state.customerSuggestionIndex - 1);
+            setCustomerSuggestionIndex(state.customerSuggestionIndex <= 0 ? suggestions.length - 1 : state.customerSuggestionIndex - 1, true, true);
           }
           if (event.key === "Escape") {
             el("analysis-customer-suggestions").hidden = true;
             state.customerSuggestionIndex = -1;
             el("analysis-customer").removeAttribute("aria-activedescendant");
+            el("analysis-customer").setAttribute("aria-expanded", "false");
           }
           if (event.key === "Enter") {
             const selected = suggestions[state.customerSuggestionIndex] || suggestions[0];
@@ -1460,6 +1462,28 @@
         el("analysis-customer-suggestions").addEventListener("mousemove", (event) => {
           const button = event.target.closest("[data-customer-suggestion-index]");
           if (button) setCustomerSuggestionIndex(Number(button.dataset.customerSuggestionIndex), false);
+        });
+        el("analysis-customer-suggestions").addEventListener("keydown", (event) => {
+          const button = event.target.closest("[data-customer-suggestion-index]");
+          if (!button) return;
+          const suggestions = [...el("analysis-customer-suggestions").querySelectorAll("[data-customer-suggestion]")];
+          const currentIndex = Number(button.dataset.customerSuggestionIndex);
+          if (event.key === "ArrowDown") {
+            event.preventDefault();
+            setCustomerSuggestionIndex((currentIndex + 1) % suggestions.length, true, true);
+          } else if (event.key === "ArrowUp") {
+            event.preventDefault();
+            setCustomerSuggestionIndex(currentIndex <= 0 ? suggestions.length - 1 : currentIndex - 1, true, true);
+          } else if (event.key === "Enter") {
+            event.preventDefault();
+            applyCustomerSuggestion(button.dataset.customerSuggestion);
+            el("analysis-customer").focus();
+          } else if (event.key === "Escape") {
+            event.preventDefault();
+            el("analysis-customer-suggestions").hidden = true;
+            el("analysis-customer").setAttribute("aria-expanded", "false");
+            el("analysis-customer").focus();
+          }
         });
         document.addEventListener("click", (event) => {
           if (!event.target.closest(".customer-search")) el("analysis-customer-suggestions").hidden = true;
@@ -2469,6 +2493,7 @@
           target.innerHTML = "";
           state.customerSuggestionIndex = -1;
           el("analysis-customer").removeAttribute("aria-activedescendant");
+          el("analysis-customer").setAttribute("aria-expanded", "false");
           return;
         }
         const matches = state.customerOptions
@@ -2485,9 +2510,10 @@
           : `<div class="empty" style="padding:12px">일치하는 고객사가 없습니다.</div>`;
         state.customerSuggestionIndex = -1;
         target.hidden = false;
+        el("analysis-customer").setAttribute("aria-expanded", "true");
       }
 
-      function setCustomerSuggestionIndex(index, shouldScroll = true) {
+      function setCustomerSuggestionIndex(index, shouldScroll = true, shouldFocus = false) {
         const suggestions = [...el("analysis-customer-suggestions").querySelectorAll("[data-customer-suggestion]")];
         if (!suggestions.length) return;
         state.customerSuggestionIndex = Math.max(0, Math.min(index, suggestions.length - 1));
@@ -2499,6 +2525,7 @@
         const activeButton = suggestions[state.customerSuggestionIndex];
         el("analysis-customer").setAttribute("aria-activedescendant", activeButton.id);
         if (shouldScroll) activeButton.scrollIntoView({ block: "nearest" });
+        if (shouldFocus) activeButton.focus({ preventScroll: true });
       }
 
       function applyCustomerSuggestion(customer) {
@@ -2506,6 +2533,7 @@
         state.analysis.customer = customer;
         state.customerSuggestionIndex = -1;
         el("analysis-customer").removeAttribute("aria-activedescendant");
+        el("analysis-customer").setAttribute("aria-expanded", "false");
         el("analysis-customer-suggestions").hidden = true;
         render();
       }
