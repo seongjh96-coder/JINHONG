@@ -841,7 +841,7 @@
           <label class="control"><span>사업 카테고리</span><select class="input" id="analysis-category"></select></label>
           <label class="control"><span>담당자</span><select class="input" id="analysis-manager"></select></label>
           <label class="control"><span>센터</span><select class="input" id="analysis-center"></select></label>
-          <label class="control"><span>고객사</span><select class="input" id="analysis-customer"></select></label>
+          <label class="control"><span>고객사 검색</span><input class="input" id="analysis-customer" list="analysis-customer-options" type="search" placeholder="고객사명을 입력하세요" autocomplete="off"><datalist id="analysis-customer-options"></datalist></label>
         </div>
         <div class="month-slicer" id="analysis-months" aria-label="월 선택"></div>
       </section>
@@ -955,7 +955,7 @@
         <article class="panel section" style="margin-top:16px">
           <div class="section-head">
             <h2>고객사 월별 목표·예측·실적 비교</h2>
-            <div class="actions"><span class="badge">목표비=A-C · 예측비=B-C</span><button class="btn soft" id="customer-month-download" type="button">엑셀 다운로드</button></div>
+            <div class="actions"><span class="badge">목표비=C-A · 예측비=C-B</span><button class="btn soft" id="customer-month-download" type="button">엑셀 다운로드</button></div>
           </div>
           <div class="table-scroll">
             <table class="pivot-table" id="customer-month-pivot">
@@ -1370,9 +1370,10 @@
       function bindActions() {
         ["source-menu", "year-select", "month-select", "dept-input"].forEach((id) => el(id).addEventListener("change", syncAutoLabels));
         ["team-filter", "account-filter", "customer-filter", "metric-filter", "period-filter"].forEach((id) => el(id).addEventListener("change", syncStateAndRender));
-        ["analysis-year", "analysis-business-team", "analysis-category", "analysis-manager", "analysis-center", "analysis-customer"].forEach((id) => {
+        ["analysis-year", "analysis-business-team", "analysis-category", "analysis-manager", "analysis-center"].forEach((id) => {
           el(id).addEventListener("change", syncAnalysisAndRender);
         });
+        el("analysis-customer").addEventListener("input", syncAnalysisAndRender);
         el("analysis-months").addEventListener("click", async (event) => {
           if (event.target.closest("[data-analysis-all]")) {
             state.analysis.months = [];
@@ -2350,15 +2351,17 @@
           ["analysis-business-team", "businessTeam", state.analysis.businessTeam],
           ["analysis-category", "category", state.analysis.category],
           ["analysis-manager", "manager", state.analysis.manager],
-          ["analysis-center", "center", state.analysis.center],
-          ["analysis-customer", "customer", state.analysis.customer]
+          ["analysis-center", "center", state.analysis.center]
         ];
         definitions.forEach(([id, key, selected]) => {
           const values = unique(rows.map((row) => row[key])).sort((a, b) => String(a).localeCompare(String(b), "ko", { numeric: true }));
           fillSelect(id, [["", "선택 안 함"], ...values.map((value) => [value, value])]);
           el(id).value = values.includes(selected) ? selected : "";
-          state.analysis[{ "analysis-year": "year", "analysis-business-team": "businessTeam", "analysis-category": "category", "analysis-manager": "manager", "analysis-center": "center", "analysis-customer": "customer" }[id]] = el(id).value;
+          state.analysis[{ "analysis-year": "year", "analysis-business-team": "businessTeam", "analysis-category": "category", "analysis-manager": "manager", "analysis-center": "center" }[id]] = el(id).value;
         });
+        const customerValues = unique(rows.map((row) => row.customer)).sort((a, b) => String(a).localeCompare(String(b), "ko", { numeric: true }));
+        el("analysis-customer-options").innerHTML = customerValues.map((value) => `<option value="${esc(value)}"></option>`).join("");
+        el("analysis-customer").value = state.analysis.customer || "";
         renderMonthSlicer();
       }
 
@@ -2408,7 +2411,7 @@
           if (state.analysis.category && row.category !== state.analysis.category) return false;
           if (state.analysis.manager && row.manager !== state.analysis.manager) return false;
           if (state.analysis.center && row.center !== state.analysis.center) return false;
-          if (state.analysis.customer && row.customer !== state.analysis.customer) return false;
+          if (state.analysis.customer && !String(row.customer).toLocaleLowerCase("ko").includes(String(state.analysis.customer).trim().toLocaleLowerCase("ko"))) return false;
           return true;
         });
       }
@@ -3047,7 +3050,7 @@
           return (customerTotals.get(b) || 0) - (customerTotals.get(a) || 0);
         });
         const groupMap = new Map(groups.map((group) => [`${group.year}|${group.month}|${group.customer}`, group]));
-        const measures = ["목표(A)", "예측(B)", "실적(C)", "목표비(A-C)", "예측비(B-C)", "전월비"];
+        const measures = ["목표(A)", "예측(B)", "실적(C)", "목표비(C-A)", "예측비(C-B)", "전월비"];
         return { baselineMap, periods, years, customers, groupMap, measures };
       }
 
@@ -3058,7 +3061,7 @@
         const previous = previousYearMonth(year, month);
         const previousGroup = model.baselineMap.get(`${previous.year}|${previous.month}|${customer}`);
         const previousResult = previousGroup ? previousGroup.result : group.beforeResult;
-        return [group.goal, group.forecast, group.result, group.goal - group.result, group.forecast - group.result, group.result - previousResult];
+        return [group.goal, group.forecast, group.result, group.result - group.goal, group.result - group.forecast, group.result - previousResult];
       }
 
       function renderCustomerMonthlyAnalysis(list, baselineList) {
