@@ -1,4 +1,5 @@
 <!doctype html>
+<!-- deployment-sync: 2026-06-23-sidebar-helios-header -->
 <html lang="ko">
 <head>
   <meta charset="utf-8">
@@ -802,7 +803,7 @@
           <p class="subtitle" id="page-subtitle">HELIOS에서 Export(Org)를 실행해 매출 실적과 예측 데이터를 집계합니다.</p>
         </div>
         <div class="actions">
-          <button class="btn" id="helios-admin-btn" type="button">HELIOS 다운로드</button>
+          <button class="btn" id="helios-admin-btn" type="button" style="display:none">HELIOS 다운로드</button>
           <button class="btn icon-btn" id="settings-btn" type="button" title="설정" aria-label="설정">⚙</button>
           <button class="btn" id="reset-btn" type="button">초기화</button>
           <div class="settings-popover" id="settings-panel">
@@ -1459,6 +1460,7 @@
       function showView(view) {
         document.querySelectorAll("nav button").forEach((button) => button.classList.toggle("active", button.dataset.view === view));
         document.querySelectorAll(".view").forEach((panel) => panel.classList.toggle("active", panel.id === view));
+        el("helios-admin-btn").style.display = view === "history" ? "inline-flex" : "none";
         el("page-title").textContent = labels[view][0];
         el("page-subtitle").textContent = labels[view][1];
         const analysisViews = new Set(["performance-industry", "monthly-trend", "risk-analysis", "portfolio-analysis", "next-month-forecast", "business-plan"]);
